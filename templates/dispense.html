@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title"><i class="bi bi-capsule me-2"></i>Dispense Medicine</div>
+
+<div class="card border-0 shadow-sm" style="border-radius:1rem; max-width:520px">
+  <div class="card-body p-4">
+
+    <!-- Medicine Info Card -->
+    <div class="rounded-3 p-3 mb-4" style="background:#f0f4f8; border-left:4px solid #1a3c5e">
+      <div class="row g-2">
+        <div class="col-6">
+          <div class="text-muted small">Medicine</div>
+          <div class="fw-bold">{{ med.medicine_name }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small">Medicine ID</div>
+          <div class="fw-semibold">{{ med.medicine_id }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small">Batch</div>
+          <div>{{ med.batch_number }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small">Current Stock</div>
+          <div class="fw-bold fs-5
+            {% if med.low_stock %}text-warning{% else %}text-success{% endif %}">
+            {{ med.quantity }} units
+            {% if med.low_stock %}<span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">Low</span>{% endif %}
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small">Expiry Date</div>
+          <div>
+            {{ med.expiry_date }}
+            {% if med.status == "expired" %}
+              <span class="badge bg-danger ms-1">Expired</span>
+            {% elif med.status == "expiring" %}
+              <span class="badge bg-warning text-dark ms-1">{{ med.days_left }}d left</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small">Price</div>
+          <div>Rs. {{ med.price }}</div>
+        </div>
+      </div>
+    </div>
+
+    {% if med.status == "expired" %}
+    <div class="alert alert-danger d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <strong>Warning:</strong> This medicine is expired! Dispensing is not recommended.
+    </div>
+    {% endif %}
+
+    <form method="post">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Quantity to Dispense <span class="text-danger">*</span></label>
+        <input name="qty_used" type="number" min="1" max="{{ med.quantity }}"
+               class="form-control form-control-lg" placeholder="e.g. 20" required autofocus/>
+        <div class="form-text">Max available: <strong>{{ med.quantity }}</strong> units</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Dispensed By</label>
+        <input name="dispensed_by" class="form-control" placeholder="Pharmacist name / ID"/>
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Note <span class="text-muted fw-normal">(optional)</span></label>
+        <input name="note" class="form-control" placeholder="e.g. Patient: John Doe / Ward 3"/>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-success px-4">
+          <i class="bi bi-check-lg me-1"></i>Dispense
+        </button>
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancel</a>
+        <a href="{{ url_for('usage') }}" class="btn btn-outline-primary ms-auto">
+          <i class="bi bi-clock-history me-1"></i>Usage Log
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

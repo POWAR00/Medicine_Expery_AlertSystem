@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title"><i class="bi bi-bar-chart me-2"></i>Inventory Report</div>
+<p class="text-muted mb-4">Generated on {{ today.strftime('%d %B %Y') }}</p>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-2">
+    <div class="card stat-card p-3 text-center" style="border-top:4px solid #1a3c5e">
+      <div class="fs-2 fw-bold text-primary">{{ stats.total }}</div>
+      <div class="text-muted small">Total</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-2">
+    <div class="card stat-card p-3 text-center" style="border-top:4px solid #dc3545">
+      <div class="fs-2 fw-bold text-danger">{{ stats.expired }}</div>
+      <div class="text-muted small">Expired</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-2">
+    <div class="card stat-card p-3 text-center" style="border-top:4px solid #fd7e14">
+      <div class="fs-2 fw-bold text-warning">{{ stats.expiring }}</div>
+      <div class="text-muted small">Exp. Soon</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-2">
+    <div class="card stat-card p-3 text-center" style="border-top:4px solid #ffc107">
+      <div class="fs-2 fw-bold" style="color:#ffc107">{{ stats.low }}</div>
+      <div class="text-muted small">Low Stock</div>
+    </div>
+  </div>
+  <div class="col-12 col-xl-4">
+    <div class="card stat-card p-3 text-center" style="border-top:4px solid #198754">
+      <div class="fs-4 fw-bold text-success">Rs. {{ "%.2f"|format(stats.value) }}</div>
+      <div class="text-muted small">Total Inventory Value</div>
+    </div>
+  </div>
+</div>
+
+<!-- Full Inventory -->
+<div class="card table-card mb-4">
+  <div class="card-header bg-white fw-semibold py-3">
+    <i class="bi bi-table me-2"></i>Full Inventory
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr><th>ID</th><th>Name</th><th>Batch</th><th>Qty</th><th>Expiry</th><th>Price</th><th>Stock Value</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for m in meds %}
+        <tr>
+          <td class="fw-semibold">{{ m.medicine_id }}</td>
+          <td>{{ m.medicine_name }}</td>
+          <td class="text-muted small">{{ m.batch_number }}</td>
+          <td>
+            {{ m.quantity }}
+            {% if m.low_stock %}<span class="badge bg-warning text-dark ms-1">Low</span>{% endif %}
+          </td>
+          <td>{{ m.expiry_date }}</td>
+          <td>Rs. {{ m.price }}</td>
+          <td class="fw-semibold">Rs. {{ "%.2f"|format(float(m.price) * int(m.quantity)) }}</td>
+          <td>
+            {% if m.status == "expired" %}
+              <span class="badge bg-danger">Expired</span>
+            {% elif m.status == "expiring" %}
+              <span class="badge bg-warning text-dark">Expiring</span>
+            {% else %}
+              <span class="badge bg-success">Good</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Restock Log -->
+<div class="card table-card mb-4">
+  <div class="card-header bg-white fw-semibold py-3">
+    <i class="bi bi-clock-history me-2"></i>Restock Log
+  </div>
+  {% if log %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr><th>Timestamp</th><th>Med ID</th><th>Name</th><th>Old Qty</th><th>New Qty</th><th>Change</th><th>By</th></tr>
+      </thead>
+      <tbody>
+        {% for e in log %}
+        {% set diff = e.new_quantity|int - e.old_quantity|int %}
+        <tr>
+          <td class="small text-muted">{{ e.timestamp }}</td>
+          <td class="fw-semibold">{{ e.medicine_id }}</td>
+          <td>{{ e.medicine_name }}</td>
+          <td>{{ e.old_quantity }}</td>
+          <td>{{ e.new_quantity }}</td>
+          <td>
+            {% if diff >= 0 %}
+              <span class="badge bg-success">+{{ diff }}</span>
+            {% else %}
+              <span class="badge bg-danger">{{ diff }}</span>
+            {% endif %}
+          </td>
+          <td class="small">{{ e.changed_by }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="p-4 text-muted text-center">No restock history yet.</div>
+  {% endif %}
+</div>
+
+<!-- Usage / Dispense Log -->
+<div class="card table-card">
+  <div class="card-header bg-white fw-semibold py-3">
+    <i class="bi bi-capsule me-2"></i>Dispense / Usage Log
+  </div>
+  {% if ulog %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr><th>Timestamp</th><th>Med ID</th><th>Name</th><th>Used</th><th>Before</th><th>After</th><th>By</th><th>Note</th></tr>
+      </thead>
+      <tbody>
+        {% for e in ulog|reverse %}
+        <tr {% if e.qty_after|int <= 10 %}class="table-warning"{% endif %}>
+          <td class="small text-muted">{{ e.timestamp }}</td>
+          <td class="fw-semibold">{{ e.medicine_id }}</td>
+          <td>{{ e.medicine_name }}</td>
+          <td><span class="badge bg-danger">-{{ e.qty_used }}</span></td>
+          <td>{{ e.qty_before }}</td>
+          <td>{{ e.qty_after }}{% if e.qty_after|int <= 10 %} <span class="badge bg-warning text-dark">Low</span>{% endif %}</td>
+          <td class="small">{{ e.dispensed_by }}</td>
+          <td class="small text-muted">{{ e.note }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="p-4 text-muted text-center">No dispense history yet.</div>
+  {% endif %}
+</div>
+
+{% endblock %}

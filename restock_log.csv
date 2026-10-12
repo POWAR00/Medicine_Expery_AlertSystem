@@ -1,0 +1,2 @@
+timestamp,medicine_id,medicine_name,old_quantity,new_quantity,changed_by
+2026-09-28 21:06:03,MED001,Paracetamol,100,80,system

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title"><i class="bi bi-clock-history me-2"></i>Usage Log</div>
+
+<div class="card table-card">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+    <span class="fw-semibold"><i class="bi bi-list-check me-2"></i>All Dispense Records</span>
+    <span class="badge bg-secondary">{{ log|length }} entries</span>
+  </div>
+
+  {% if log %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Medicine</th>
+          <th>ID</th>
+          <th>Used</th>
+          <th>Before</th>
+          <th>After</th>
+          <th>Dispensed By</th>
+          <th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in log %}
+        {% set diff = e.qty_after|int - e.qty_before|int %}
+        <tr {% if e.qty_after|int <= 10 %}class="table-warning"{% endif %}>
+          <td class="small text-muted">{{ e.timestamp }}</td>
+          <td class="fw-semibold">{{ e.medicine_name }}</td>
+          <td class="small text-muted">{{ e.medicine_id }}</td>
+          <td><span class="badge bg-danger fs-6">-{{ e.qty_used }}</span></td>
+          <td>{{ e.qty_before }}</td>
+          <td>
+            {{ e.qty_after }}
+            {% if e.qty_after|int <= 10 %}
+              <span class="badge bg-warning text-dark ms-1">Low</span>
+            {% endif %}
+          </td>
+          <td class="small">{{ e.dispensed_by }}</td>
+          <td class="small text-muted">{{ e.note }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="p-5 text-center text-muted">
+    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+    No dispense records yet.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

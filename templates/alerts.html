@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title"><i class="bi bi-bell me-2"></i>Alerts</div>
+
+<!-- Expired -->
+<div class="card table-card mb-4">
+  <div class="card-header bg-danger text-white d-flex align-items-center gap-2 py-3">
+    <i class="bi bi-x-circle fs-5"></i>
+    <span class="fw-semibold">Expired Medicines ({{ expired|length }})</span>
+  </div>
+  {% if expired %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>ID</th><th>Name</th><th>Batch</th><th>Qty</th><th>Expired On</th><th>Price</th><th>Supplier</th></tr></thead>
+      <tbody>
+        {% for m in expired %}
+        <tr class="table-danger">
+          <td class="fw-semibold">{{ m.medicine_id }}</td>
+          <td>{{ m.medicine_name }}</td>
+          <td class="text-muted small">{{ m.batch_number }}</td>
+          <td>{{ m.quantity }}</td>
+          <td>{{ m.expiry_date }} <span class="badge bg-danger">{{ m.days_left|abs }} days ago</span></td>
+          <td>Rs. {{ m.price }}</td>
+          <td class="small">{{ m.supplier_name }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="p-4 text-muted text-center"><i class="bi bi-check-circle text-success fs-4 me-2"></i>No expired medicines.</div>
+  {% endif %}
+</div>
+
+<!-- Expiring Soon -->
+<div class="card table-card mb-4">
+  <div class="card-header bg-warning text-dark d-flex align-items-center gap-2 py-3">
+    <i class="bi bi-clock-history fs-5"></i>
+    <span class="fw-semibold">Expiring Within 30 Days ({{ expiring|length }})</span>
+  </div>
+  {% if expiring %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>ID</th><th>Name</th><th>Batch</th><th>Qty</th><th>Expiry Date</th><th>Days Left</th><th>Supplier</th></tr></thead>
+      <tbody>
+        {% for m in expiring %}
+        <tr class="table-warning">
+          <td class="fw-semibold">{{ m.medicine_id }}</td>
+          <td>{{ m.medicine_name }}</td>
+          <td class="text-muted small">{{ m.batch_number }}</td>
+          <td>{{ m.quantity }}</td>
+          <td>{{ m.expiry_date }}</td>
+          <td><span class="badge bg-warning text-dark">{{ m.days_left }} days</span></td>
+          <td class="small">{{ m.supplier_name }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="p-4 text-muted text-center"><i class="bi bi-check-circle text-success fs-4 me-2"></i>No medicines expiring within 30 days.</div>
+  {% endif %}
+</div>
+
+<!-- Low Stock -->
+<div class="card table-card mb-4">
+  <div class="card-header bg-info text-white d-flex align-items-center gap-2 py-3">
+    <i class="bi bi-box-seam fs-5"></i>
+    <span class="fw-semibold">Low Stock Medicines ({{ low|length }})</span>
+  </div>
+  {% if low %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>ID</th><th>Name</th><th>Batch</th><th>Quantity</th><th>Expiry</th><th>Supplier</th><th>Contact</th></tr></thead>
+      <tbody>
+        {% for m in low %}
+        <tr class="table-info">
+          <td class="fw-semibold">{{ m.medicine_id }}</td>
+          <td>{{ m.medicine_name }}</td>
+          <td class="text-muted small">{{ m.batch_number }}</td>
+          <td><span class="badge bg-warning text-dark fs-6">{{ m.quantity }}</span></td>
+          <td>{{ m.expiry_date }}</td>
+          <td class="small">{{ m.supplier_name }}</td>
+          <td class="small">{{ m.contact_number }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="p-4 text-muted text-center"><i class="bi bi-check-circle text-success fs-4 me-2"></i>All medicines have sufficient stock.</div>
+  {% endif %}
+</div>
+{% endblock %}

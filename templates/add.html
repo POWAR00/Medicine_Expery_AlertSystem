@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title"><i class="bi bi-plus-circle me-2"></i>Add New Medicine</div>
+
+<div class="card border-0 shadow-sm" style="border-radius:1rem; max-width:720px">
+  <div class="card-body p-4">
+    <form method="post">
+      <h6 class="text-uppercase text-muted fw-semibold mb-3" style="font-size:.75rem; letter-spacing:.08em">
+        Medicine Details
+      </h6>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Medicine ID <span class="text-danger">*</span></label>
+          <input name="medicine_id" class="form-control" placeholder="e.g. MED001" required/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Medicine Name <span class="text-danger">*</span></label>
+          <input name="medicine_name" class="form-control" placeholder="e.g. Paracetamol 500mg" required/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Batch Number <span class="text-danger">*</span></label>
+          <input name="batch_number" class="form-control" placeholder="e.g. BT2024-01" required/>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Quantity <span class="text-danger">*</span></label>
+          <input name="quantity" type="number" min="1" class="form-control" placeholder="100" required/>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Price (Rs.) <span class="text-danger">*</span></label>
+          <input name="price" type="number" step="0.01" min="0.01" class="form-control" placeholder="25.00" required/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Expiry Date <span class="text-danger">*</span></label>
+          <input name="expiry_date" type="date" class="form-control" required/>
+        </div>
+      </div>
+
+      <hr/>
+      <h6 class="text-uppercase text-muted fw-semibold mb-3" style="font-size:.75rem; letter-spacing:.08em">
+        Supplier Details <span class="text-muted fw-normal">(optional)</span>
+      </h6>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Supplier Name</label>
+          <input name="supplier_name" class="form-control" placeholder="ABC Pharma Ltd."/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Contact Number</label>
+          <input name="contact_number" class="form-control" placeholder="9876543210"/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Email</label>
+          <input name="email" type="email" class="form-control" placeholder="supplier@email.com"/>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i>Add Medicine</button>
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,4 @@
+timestamp,medicine_id,medicine_name,qty_used,qty_before,qty_after,dispensed_by,note
+2026-09-28 21:11:46,MED001,Paracetamol,30,80,50,xyz,
+2026-09-28 21:12:23,MED002,Paracetamol,95,100,5,unknown,
+2026-09-28 21:13:50,MED003,Fungal,20,20,0,unknown,
