@@ -3,7 +3,7 @@ from flask import (Flask, render_template, request, redirect,
 from flask_login import (LoginManager, UserMixin, login_user,
                          logout_user, login_required, current_user)
 from apscheduler.schedulers.background import BackgroundScheduler
-import csv, os, random, smtplib, atexit
+import csv, os, random, smtplib, atexit, threading
 from datetime import datetime, date
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -141,7 +141,7 @@ def send_email(to_email, subject, html):
         msg["From"]    = SMTP_EMAIL
         msg["To"]      = to_email
         msg.attach(MIMEText(html, "html"))
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
             s.ehlo(); s.starttls()
             s.login(SMTP_EMAIL, SMTP_PASSWORD)
             s.sendmail(SMTP_EMAIL, to_email, msg.as_string())
@@ -218,10 +218,12 @@ def signup():
             "mobile": mobile, "email": email, "role": "user",
             "otp": otp, "otp_time": datetime.now().strftime(TS_FORMAT),
         }
-        sent, _ = send_otp_email(email, otp, username, mobile)
+        # Send OTP in background so page responds immediately
+        threading.Thread(
+            target=send_otp_email, args=(email, otp, username, mobile), daemon=True
+        ).start()
         session["signup_email"] = email
-        flash("OTP sent to your email. Please verify." if sent
-              else "OTP (Demo): Check server terminal.", "info" if sent else "warning")
+        flash("OTP sent to your email. Please verify.", "info")
         return redirect(url_for("verify_signup_otp"))
     return render_template("signup.html")
 
@@ -262,9 +264,12 @@ def resend_signup_otp():
         return redirect(url_for("signup"))
     otp = generate_otp()
     pending_registrations[email].update({"otp": otp, "otp_time": datetime.now().strftime(TS_FORMAT)})
-    sent, _ = send_otp_email(email, otp, pending_registrations[email]["username"],
-                             pending_registrations[email]["mobile"])
-    flash("New OTP sent." if sent else "OTP (Demo): Check terminal.", "info" if sent else "warning")
+    threading.Thread(
+        target=send_otp_email,
+        args=(email, otp, pending_registrations[email]["username"], pending_registrations[email]["mobile"]),
+        daemon=True
+    ).start()
+    flash("New OTP sent to your email.", "info")
     return redirect(url_for("verify_signup_otp"))
 
 
@@ -284,9 +289,11 @@ def login():
         otp = generate_otp()
         session.update({"otp": otp, "otp_username": username,
                         "otp_time": datetime.now().strftime(TS_FORMAT)})
-        sent, _ = send_otp_email(user.email, otp, user.username, user.mobile)
-        flash(f"OTP sent to {user.email[:4]}***. Check inbox." if sent
-              else "OTP (Demo): Check server terminal.", "info" if sent else "warning")
+        # Send OTP in background so page responds immediately
+        threading.Thread(
+            target=send_otp_email, args=(user.email, otp, user.username, user.mobile), daemon=True
+        ).start()
+        flash(f"OTP sent to your email. Please check inbox.", "info")
         return redirect(url_for("verify_otp"))
     return render_template("login.html")
 
@@ -321,8 +328,10 @@ def resend_otp():
     if not user: return redirect(url_for("login"))
     otp = generate_otp()
     session.update({"otp": otp, "otp_time": datetime.now().strftime(TS_FORMAT)})
-    sent, _ = send_otp_email(user.email, otp, user.username, user.mobile)
-    flash("New OTP sent." if sent else "OTP (Demo): Check terminal.", "info" if sent else "warning")
+    threading.Thread(
+        target=send_otp_email, args=(user.email, otp, user.username, user.mobile), daemon=True
+    ).start()
+    flash("New OTP sent to your email.", "info")
     return redirect(url_for("verify_otp"))
 
 
