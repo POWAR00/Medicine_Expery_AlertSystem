@@ -16,7 +16,7 @@ app.secret_key = "med_alert_secret_2024"
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
-login_manager.login_message = "Please login to access the system."
+login_manager.login_message = "⚠ You need to login first to access this page."
 login_manager.login_message_category = "warning"
 
 # ─────────────────────────────────────────────
