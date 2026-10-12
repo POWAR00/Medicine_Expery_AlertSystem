@@ -605,6 +605,94 @@ def send_alert_now():
 
 
 # ─────────────────────────────────────────────
+# Admin Panel
+# ─────────────────────────────────────────────
+def admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != "admin":
+            flash("Admin access required.", "danger")
+            return redirect(url_for("index"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/admin")
+@login_required
+@admin_required
+def admin_panel():
+    users = get_users()
+    user_stats = []
+    for u in users:
+        meds = enrich(load(csv_file(u["username"]), FIELDNAMES))
+        user_stats.append({
+            "username":  u["username"],
+            "email":     u["email"],
+            "mobile":    u["mobile"],
+            "role":      u["role"],
+            "total":     len(meds),
+            "expired":   sum(1 for m in meds if m["status"] == "expired"),
+            "expiring":  sum(1 for m in meds if m["status"] == "expiring"),
+            "low":       sum(1 for m in meds if m["low_stock"]),
+            "value":     sum(float(m["price"]) * int(m["quantity"]) for m in meds),
+        })
+    return render_template("admin.html", users=user_stats, total_users=len(users))
+
+
+@app.route("/admin/view/<username>")
+@login_required
+@admin_required
+def admin_view_user(username):
+    user = find_user(username)
+    if not user:
+        flash("User not found.", "danger")
+        return redirect(url_for("admin_panel"))
+    meds = enrich(load(csv_file(username), FIELDNAMES))
+    stats = {
+        "total":    len(meds),
+        "expired":  sum(1 for m in meds if m["status"] == "expired"),
+        "expiring": sum(1 for m in meds if m["status"] == "expiring"),
+        "low":      sum(1 for m in meds if m["low_stock"]),
+        "value":    sum(float(m["price"]) * int(m["quantity"]) for m in meds),
+    }
+    return render_template("admin_user.html", user=user, meds=meds, stats=stats)
+
+
+@app.route("/admin/delete-user/<username>", methods=["POST"])
+@login_required
+@admin_required
+def admin_delete_user(username):
+    if username.lower() == "admin":
+        flash("Cannot delete admin account.", "danger")
+        return redirect(url_for("admin_panel"))
+    users = [u for u in get_users() if u["username"].lower() != username.lower()]
+    save(USERS_FILE, USER_FIELDS, users)
+    # Remove user's data folder
+    import shutil
+    udir = user_dir(username)
+    if os.path.exists(udir):
+        shutil.rmtree(udir)
+    flash(f"User '{username}' deleted successfully.", "warning")
+    return redirect(url_for("admin_panel"))
+
+
+@app.route("/admin/change-role/<username>", methods=["POST"])
+@login_required
+@admin_required
+def admin_change_role(username):
+    new_role = request.form.get("role", "user")
+    users = get_users()
+    for u in users:
+        if u["username"].lower() == username.lower():
+            u["role"] = new_role
+            break
+    save(USERS_FILE, USER_FIELDS, users)
+    flash(f"Role updated for '{username}'.", "success")
+    return redirect(url_for("admin_panel"))
+
+
+# ─────────────────────────────────────────────
 # Scheduler — daily 9 AM
 # ─────────────────────────────────────────────
 scheduler = BackgroundScheduler()
