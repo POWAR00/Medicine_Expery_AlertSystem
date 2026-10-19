@@ -1,62 +1,133 @@
 {% extends "base.html" %}
+{% block title %}Edit {{ med.medicine_name }} — MediAlert Pro{% endblock %}
+
 {% block content %}
-
-<div class="page-title"><i class="bi bi-pencil-square me-2"></i>Edit Medicine</div>
-
-<div class="card border-0 shadow-sm" style="border-radius:1rem; max-width:720px">
-  <div class="card-body p-4">
-    <div class="alert alert-info d-flex align-items-center gap-2 py-2 mb-4">
-      <i class="bi bi-info-circle"></i>
-      <span>Editing: <strong>{{ med.medicine_name }}</strong> &nbsp;|&nbsp; Batch: {{ med.batch_number }} &nbsp;|&nbsp; ID: {{ med.medicine_id }}</span>
-    </div>
-
-    <form method="post">
-      <h6 class="text-uppercase text-muted fw-semibold mb-3" style="font-size:.75rem; letter-spacing:.08em">
-        Medicine Details
-      </h6>
-      <div class="row g-3 mb-4">
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Quantity <span class="text-danger">*</span></label>
-          <input name="quantity" type="number" min="1" class="form-control" value="{{ med.quantity }}" required/>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Price (Rs.) <span class="text-danger">*</span></label>
-          <input name="price" type="number" step="0.01" min="0.01" class="form-control" value="{{ med.price }}" required/>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Expiry Date <span class="text-danger">*</span></label>
-          <input name="expiry_date" type="date" class="form-control" value="{{ med.expiry_date }}" required/>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Changed By</label>
-          <input name="changed_by" class="form-control" placeholder="Your name or ID"/>
-        </div>
-      </div>
-
-      <hr/>
-      <h6 class="text-uppercase text-muted fw-semibold mb-3" style="font-size:.75rem; letter-spacing:.08em">
-        Supplier Details
-      </h6>
-      <div class="row g-3 mb-4">
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Supplier Name</label>
-          <input name="supplier_name" class="form-control" value="{{ sup.supplier_name or '' }}"/>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Contact Number</label>
-          <input name="contact_number" class="form-control" value="{{ sup.contact_number or '' }}"/>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Email</label>
-          <input name="email" type="email" class="form-control" value="{{ sup.email or '' }}"/>
-        </div>
-      </div>
-
-      <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
-        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancel</a>
-      </div>
-    </form>
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('index') }}" class="btn btn-icon" title="Back to Dashboard">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h2 class="fw-bold mb-1" style="letter-spacing:-0.03em;">Edit Medicine Record</h2>
+    <p class="text-muted small mb-0">Update stock inventory quantities, expiry date adjustments, and supplier metadata.</p>
   </div>
 </div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-9 col-xl-8">
+    <div class="card-modern p-4 p-md-5">
+      <!-- Active Medicine Highlight Card -->
+      <div class="p-3 rounded-4 mb-4 d-flex align-items-center justify-content-between" style="background:rgba(2, 132, 199, 0.08); border:1px solid rgba(2, 132, 199, 0.2);">
+        <div class="d-flex align-items-center gap-3">
+          <div class="p-3 bg-primary text-white rounded-3">
+            <i class="bi bi-capsule fs-4"></i>
+          </div>
+          <div>
+            <div class="fw-bold fs-5 text-dark">{{ med.medicine_name }}</div>
+            <div class="small text-muted font-monospace">ID: <strong>{{ med.medicine_id }}</strong> | Lot Batch: <strong>{{ med.batch_number }}</strong></div>
+          </div>
+        </div>
+        <span class="badge bg-primary rounded-pill px-3 py-2">Batch Locked</span>
+      </div>
+
+      <form method="post">
+        <!-- Section: Inventory Values -->
+        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+          <i class="bi bi-sliders text-primary fs-5"></i>
+          <h5 class="fw-bold mb-0">Stock &amp; Pricing Update</h5>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Current Stock Units <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-boxes"></i></span>
+              <input name="quantity" id="inputQty" type="number" min="0" class="form-control" value="{{ med.quantity }}" required oninput="calcBatchVal()"/>
+            </div>
+            <div class="form-text small">Changes log to restock audit trail.</div>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Price / Unit (₹) <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text">₹</span>
+              <input name="price" id="inputPrice" type="number" step="0.01" min="0.01" class="form-control" value="{{ med.price }}" required oninput="calcBatchVal()"/>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Expiry Date <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-calendar-date"></i></span>
+              <input name="expiry_date" type="date" class="form-control" value="{{ med.expiry_date }}" required/>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="p-3 rounded-3 d-flex justify-content-between align-items-center" style="background:var(--bg-body); border:1px solid var(--border-color);">
+              <span class="small fw-semibold text-muted">Recalculated Batch Valuation:</span>
+              <span class="fw-bold fs-5 text-success" id="batchValDisplay">₹0.00</span>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Recorded / Modified By</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-person-check"></i></span>
+              <input name="changed_by" class="form-control" placeholder="Pharmacist name or ID" value="{{ current_user.username }}"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Supplier Details -->
+        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom pt-2">
+          <i class="bi bi-truck text-success fs-5"></i>
+          <h5 class="fw-bold mb-0">Supplier Contacts</h5>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Supplier Name</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-building"></i></span>
+              <input name="supplier_name" class="form-control" value="{{ sup.supplier_name or '' }}"/>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Contact Mobile / Phone</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+              <input name="contact_number" class="form-control" value="{{ sup.contact_number or '' }}"/>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Email</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+              <input name="email" type="email" class="form-control" value="{{ sup.email or '' }}"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 pt-3 border-top">
+          <button type="submit" class="btn btn-gradient-primary px-4 fw-bold">
+            <i class="bi bi-check2-circle me-1"></i>Save All Changes
+          </button>
+          <a href="{{ url_for('index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function calcBatchVal() {
+    const q = parseFloat(document.getElementById('inputQty').value) || 0;
+    const p = parseFloat(document.getElementById('inputPrice').value) || 0;
+    const total = q * p;
+    document.getElementById('batchValDisplay').textContent = '₹' + total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  calcBatchVal();
+</script>
 {% endblock %}

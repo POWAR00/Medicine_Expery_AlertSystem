@@ -1,85 +1,149 @@
 {% extends "base.html" %}
+{% block title %}Dispense Medicine — MediAlert Pro{% endblock %}
+
 {% block content %}
-
-<div class="page-title"><i class="bi bi-capsule me-2"></i>Dispense Medicine</div>
-
-<div class="card border-0 shadow-sm" style="border-radius:1rem; max-width:520px">
-  <div class="card-body p-4">
-
-    <!-- Medicine Info Card -->
-    <div class="rounded-3 p-3 mb-4" style="background:#f0f4f8; border-left:4px solid #1a3c5e">
-      <div class="row g-2">
-        <div class="col-6">
-          <div class="text-muted small">Medicine</div>
-          <div class="fw-bold">{{ med.medicine_name }}</div>
-        </div>
-        <div class="col-6">
-          <div class="text-muted small">Medicine ID</div>
-          <div class="fw-semibold">{{ med.medicine_id }}</div>
-        </div>
-        <div class="col-6">
-          <div class="text-muted small">Batch</div>
-          <div>{{ med.batch_number }}</div>
-        </div>
-        <div class="col-6">
-          <div class="text-muted small">Current Stock</div>
-          <div class="fw-bold fs-5
-            {% if med.low_stock %}text-warning{% else %}text-success{% endif %}">
-            {{ med.quantity }} units
-            {% if med.low_stock %}<span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">Low</span>{% endif %}
-          </div>
-        </div>
-        <div class="col-6">
-          <div class="text-muted small">Expiry Date</div>
-          <div>
-            {{ med.expiry_date }}
-            {% if med.status == "expired" %}
-              <span class="badge bg-danger ms-1">Expired</span>
-            {% elif med.status == "expiring" %}
-              <span class="badge bg-warning text-dark ms-1">{{ med.days_left }}d left</span>
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-6">
-          <div class="text-muted small">Price</div>
-          <div>Rs. {{ med.price }}</div>
-        </div>
-      </div>
-    </div>
-
-    {% if med.status == "expired" %}
-    <div class="alert alert-danger d-flex align-items-center gap-2">
-      <i class="bi bi-exclamation-triangle-fill"></i>
-      <strong>Warning:</strong> This medicine is expired! Dispensing is not recommended.
-    </div>
-    {% endif %}
-
-    <form method="post">
-      <div class="mb-3">
-        <label class="form-label fw-semibold">Quantity to Dispense <span class="text-danger">*</span></label>
-        <input name="qty_used" type="number" min="1" max="{{ med.quantity }}"
-               class="form-control form-control-lg" placeholder="e.g. 20" required autofocus/>
-        <div class="form-text">Max available: <strong>{{ med.quantity }}</strong> units</div>
-      </div>
-      <div class="mb-3">
-        <label class="form-label fw-semibold">Dispensed By</label>
-        <input name="dispensed_by" class="form-control" placeholder="Pharmacist name / ID"/>
-      </div>
-      <div class="mb-4">
-        <label class="form-label fw-semibold">Note <span class="text-muted fw-normal">(optional)</span></label>
-        <input name="note" class="form-control" placeholder="e.g. Patient: John Doe / Ward 3"/>
-      </div>
-
-      <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-success px-4">
-          <i class="bi bi-check-lg me-1"></i>Dispense
-        </button>
-        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancel</a>
-        <a href="{{ url_for('usage') }}" class="btn btn-outline-primary ms-auto">
-          <i class="bi bi-clock-history me-1"></i>Usage Log
-        </a>
-      </div>
-    </form>
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('index') }}" class="btn btn-icon" title="Back to Dashboard">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h2 class="fw-bold mb-1" style="letter-spacing:-0.03em;">Dispense Prescription Medication</h2>
+    <p class="text-muted small mb-0">Record dispensed units, patient ward reference, and adjust real-time stock levels.</p>
   </div>
 </div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8 col-xl-7">
+    <div class="card-modern p-4 p-md-5">
+      <!-- Expiry Warning -->
+      {% if med.status == "expired" %}
+      <div class="banner-alert banner-expired mb-4">
+        <i class="bi bi-x-octagon-fill text-danger fs-3"></i>
+        <div>
+          <div class="fw-bold text-danger">CRITICAL SAFETY WARNING: BATCH EXPIRED!</div>
+          <div class="small text-muted">This medicine expired on <strong>{{ med.expiry_date }}</strong> ({{ med.days_left|abs }} days ago). Dispensing expired pharmaceutical products is illegal and medically dangerous.</div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Medicine Info Box -->
+      <div class="p-4 rounded-4 mb-4" style="background:var(--bg-body); border:1px solid var(--border-color);">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <span class="badge bg-primary text-uppercase font-monospace mb-1">{{ med.medicine_id }}</span>
+            <h4 class="fw-bold mb-0 text-dark">{{ med.medicine_name }}</h4>
+            <div class="small text-muted font-monospace">Lot Batch: {{ med.batch_number }}</div>
+          </div>
+          {% if med.status == 'expired' %}
+            <span class="status-pill status-expired">Expired</span>
+          {% elif med.status == 'expiring' %}
+            <span class="status-pill status-expiring">{{ med.days_left }}d left</span>
+          {% else %}
+            <span class="status-pill status-ok">Good</span>
+          {% endif %}
+        </div>
+
+        <div class="row g-3 pt-3 border-top">
+          <div class="col-4">
+            <div class="small text-muted">Available Stock</div>
+            <div class="fw-bold fs-5 {% if med.low_stock %}text-danger{% else %}text-success{% endif %}">
+              {{ med.quantity }} Units
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="small text-muted">Unit MRP</div>
+            <div class="fw-bold fs-5">₹{{ "%.2f"|format(med.price|float) }}</div>
+          </div>
+          <div class="col-4">
+            <div class="small text-muted">Expiry Date</div>
+            <div class="fw-bold fs-6">{{ med.expiry_date }}</div>
+          </div>
+        </div>
+      </div>
+
+      <form method="post" id="dispenseForm">
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-muted text-uppercase">Quantity to Dispense <span class="text-danger">*</span></label>
+          <div class="input-group input-group-lg">
+            <span class="input-group-text"><i class="bi bi-capsule"></i></span>
+            <input name="qty_used" id="qtyUsedInput" type="number" min="1" max="{{ med.quantity }}"
+                   class="form-control fw-bold" placeholder="e.g. 10" required autofocus oninput="updateDispenseCalc()"/>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mt-2">
+            <span class="small text-muted">Max available: <strong id="maxUnits">{{ med.quantity }}</strong> units</span>
+            <div class="d-flex gap-1">
+              {% if med.quantity|int >= 1 %}<button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setDispenseQty(1)">1</button>{% endif %}
+              {% if med.quantity|int >= 5 %}<button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setDispenseQty(5)">5</button>{% endif %}
+              {% if med.quantity|int >= 10 %}<button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setDispenseQty(10)">10</button>{% endif %}
+              {% if med.quantity|int > 1 %}<button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setDispenseQty({{ (med.quantity|int / 2)|int }})">50%</button>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-time calculation widget -->
+        <div class="p-3 rounded-3 mb-4" style="background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.25);">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small text-muted fw-semibold">Patient Bill Amount:</span>
+            <span class="fw-bold fs-5 text-success" id="calcBillAmount">₹0.00</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="small text-muted fw-semibold">Stock Remaining After:</span>
+            <span class="fw-bold" id="calcRemainingStock">{{ med.quantity }} units</span>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-muted text-uppercase">Dispensed By</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-person"></i></span>
+            <input name="dispensed_by" class="form-control" value="{{ current_user.username }}"/>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold small text-muted text-uppercase">Patient Prescription / Ward Reference</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-file-earmark-medical"></i></span>
+            <input name="note" class="form-control" placeholder="e.g. Patient: John Doe / Ward 3Bed 12"/>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 pt-2 border-top">
+          <button type="submit" class="btn btn-success fw-bold px-4">
+            <i class="bi bi-check2-circle me-1"></i>Confirm Dispense
+          </button>
+          <a href="{{ url_for('index') }}" class="btn btn-outline-secondary px-3">Cancel</a>
+          <a href="{{ url_for('usage') }}" class="btn btn-outline-primary ms-auto">
+            <i class="bi bi-journal-medical me-1"></i>Dispense History
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  const unitPrice = {{ med.price|float }};
+  const totalStock = {{ med.quantity|int }};
+
+  function updateDispenseCalc() {
+    const qty = parseInt(document.getElementById('qtyUsedInput').value) || 0;
+    const bill = qty * unitPrice;
+    const remaining = totalStock - qty;
+
+    document.getElementById('calcBillAmount').textContent = '₹' + bill.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const remEl = document.getElementById('calcRemainingStock');
+    remEl.textContent = `${Math.max(0, remaining)} units`;
+    if (remaining <= 10) {
+      remEl.className = 'fw-bold text-danger';
+    } else {
+      remEl.className = 'fw-bold text-success';
+    }
+  }
+
+  function setDispenseQty(q) {
+    document.getElementById('qtyUsedInput').value = q;
+    updateDispenseCalc();
+  }
+</script>
 {% endblock %}

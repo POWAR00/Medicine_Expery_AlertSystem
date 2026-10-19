@@ -1,104 +1,163 @@
 {% extends "base.html" %}
+{% block title %}Super Admin Control Tower — MediAlert Pro{% endblock %}
+
 {% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1" style="letter-spacing:-0.03em;">
+      <i class="bi bi-shield-lock-fill text-purple me-2" style="color:#7c3aed;"></i>Super Admin Control Tower
+    </h2>
+    <p class="text-muted small mb-0">Multi-tenant pharmacist accounts, system-wide inventory surveillance, and role management.</p>
+  </div>
+  <span class="badge rounded-pill px-3 py-2 fw-bold text-white shadow-sm" style="background:linear-gradient(135deg, #7c3aed, #4f46e5); font-size:0.85rem;">
+    <i class="bi bi-person-badge-fill me-1"></i>Superuser Privileges Active
+  </span>
+</div>
 
-<div class="page-title"><i class="bi bi-shield-lock me-2"></i>Admin Panel</div>
-
-<!-- Summary -->
+<!-- Admin Overview Cards -->
 <div class="row g-3 mb-4">
   <div class="col-sm-4">
-    <div class="card stat-card p-3" style="border-left:4px solid #6f42c1">
-      <div class="d-flex justify-content-between align-items-center">
+    <div class="stat-card-gradient">
+      <div class="d-flex justify-content-between align-items-start">
         <div>
-          <div class="text-muted small">Total Users</div>
-          <div class="fs-2 fw-bold" style="color:#6f42c1">{{ total_users }}</div>
+          <span class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.06em;">Registered Pharmacists</span>
+          <h2 class="fw-bold my-2" style="color:#7c3aed;">{{ total_users }}</h2>
+          <div class="small text-muted d-flex align-items-center gap-1">
+            <i class="bi bi-people-fill text-primary"></i> Isolated tenant databases
+          </div>
         </div>
-        <i class="bi bi-people fs-1 opacity-25" style="color:#6f42c1"></i>
+        <div class="stat-icon-wrapper" style="background:rgba(124, 58, 237, 0.12); color:#7c3aed;">
+          <i class="bi bi-people"></i>
+        </div>
       </div>
     </div>
   </div>
+
   <div class="col-sm-4">
-    <div class="card stat-card p-3" style="border-left:4px solid #dc3545">
-      <div class="d-flex justify-content-between align-items-center">
+    <div class="stat-card-gradient">
+      <div class="d-flex justify-content-between align-items-start">
         <div>
-          <div class="text-muted small">Total Expired (All Users)</div>
-          <div class="fs-2 fw-bold text-danger">{{ users | sum(attribute='expired') }}</div>
+          <span class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.06em;">Global Expired Medicines</span>
+          <h2 class="fw-bold my-2 text-danger">{{ users | sum(attribute='expired') }}</h2>
+          <div class="small text-danger d-flex align-items-center gap-1">
+            <i class="bi bi-exclamation-octagon-fill"></i> System-wide quarantine items
+          </div>
         </div>
-        <i class="bi bi-x-circle fs-1 text-danger opacity-25"></i>
+        <div class="stat-icon-wrapper" style="background:rgba(239, 68, 68, 0.12); color:#ef4444;">
+          <i class="bi bi-x-octagon"></i>
+        </div>
       </div>
     </div>
   </div>
+
   <div class="col-sm-4">
-    <div class="card stat-card p-3" style="border-left:4px solid #198754">
-      <div class="d-flex justify-content-between align-items-center">
+    <div class="stat-card-gradient">
+      <div class="d-flex justify-content-between align-items-start">
         <div>
-          <div class="text-muted small">Total Inventory Value</div>
-          <div class="fs-4 fw-bold text-success">Rs. {{ "%.0f"|format(users | sum(attribute='value')) }}</div>
+          <span class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.06em;">Total Network Valuation</span>
+          <h2 class="fw-bold my-2 text-success">₹{{ "{:,.2f}".format(users | sum(attribute='value')) }}</h2>
+          <div class="small text-muted d-flex align-items-center gap-1">
+            <i class="bi bi-currency-rupee text-success"></i> Combined pharmacy stock value
+          </div>
         </div>
-        <i class="bi bi-currency-rupee fs-1 text-success opacity-25"></i>
+        <div class="stat-icon-wrapper" style="background:rgba(16, 185, 129, 0.12); color:#10b981;">
+          <i class="bi bi-coin"></i>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Users Table -->
-<div class="card table-card">
-  <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-    <span class="fw-semibold"><i class="bi bi-people me-2"></i>All Registered Users</span>
+<!-- Pharmacist Accounts Table -->
+<div class="card-modern">
+  <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+    <span class="fw-bold text-dark"><i class="bi bi-hospital me-2 text-primary"></i>All Registered Pharmacy Users</span>
+    <span class="badge bg-secondary rounded-pill">{{ users|length }} User Accounts</span>
   </div>
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
+    <table class="table-modern">
       <thead>
         <tr>
-          <th>Username</th><th>Email</th><th>Mobile</th><th>Role</th>
-          <th>Medicines</th><th>Expired</th><th>Expiring</th><th>Low Stock</th>
-          <th>Inv. Value</th><th>Actions</th>
+          <th>User Account</th>
+          <th>Contact &amp; Mobile</th>
+          <th>Role Assignment</th>
+          <th class="text-center">Total Meds</th>
+          <th class="text-center">Expired</th>
+          <th class="text-center">Expiring</th>
+          <th class="text-center">Low Stock</th>
+          <th>Account Value</th>
+          <th class="text-end">Management</th>
         </tr>
       </thead>
       <tbody>
         {% for u in users %}
         <tr>
-          <td class="fw-semibold">
-            {{ u.username }}
-            {% if u.role == 'admin' %}<span class="badge bg-purple ms-1" style="background:#6f42c1;">Admin</span>{% endif %}
-          </td>
-          <td class="small">{{ u.email }}</td>
-          <td class="small">{{ u.mobile }}</td>
           <td>
-            <form method="post" action="{{ url_for('admin_change_role', username=u.username) }}" class="d-flex gap-1">
-              <select name="role" class="form-select form-select-sm" style="width:90px;">
-                <option value="user"  {% if u.role=='user'  %}selected{% endif %}>User</option>
+            <div class="d-flex align-items-center gap-2">
+              <div class="user-avatar" style="width:34px; height:34px; font-size:0.85rem;">
+                {{ u.username[0]|upper }}
+              </div>
+              <div>
+                <div class="fw-bold text-dark">{{ u.username }}</div>
+                <div class="small text-muted">{{ u.email }}</div>
+              </div>
+            </div>
+          </td>
+
+          <td class="font-monospace small">{{ u.mobile }}</td>
+
+          <td>
+            <form method="post" action="{{ url_for('admin_change_role', username=u.username) }}" class="d-flex align-items-center gap-1">
+              <select name="role" class="form-select form-select-sm" style="width:95px; border-radius:8px;">
+                <option value="user" {% if u.role=='user' %}selected{% endif %}>User</option>
                 <option value="admin" {% if u.role=='admin' %}selected{% endif %}>Admin</option>
               </select>
-              <button class="btn btn-sm btn-outline-secondary" title="Save"><i class="bi bi-check"></i></button>
+              <button class="btn btn-sm btn-outline-primary" title="Update Role"><i class="bi bi-check-lg"></i></button>
             </form>
           </td>
-          <td class="text-center">{{ u.total }}</td>
+
+          <td class="text-center fw-bold">{{ u.total }}</td>
+
           <td class="text-center">
-            {% if u.expired > 0 %}<span class="badge bg-danger">{{ u.expired }}</span>
-            {% else %}<span class="text-muted">0</span>{% endif %}
-          </td>
-          <td class="text-center">
-            {% if u.expiring > 0 %}<span class="badge bg-warning text-dark">{{ u.expiring }}</span>
-            {% else %}<span class="text-muted">0</span>{% endif %}
-          </td>
-          <td class="text-center">
-            {% if u.low > 0 %}<span class="badge bg-warning text-dark">{{ u.low }}</span>
-            {% else %}<span class="text-muted">0</span>{% endif %}
-          </td>
-          <td class="small fw-semibold">Rs. {{ "%.0f"|format(u.value) }}</td>
-          <td>
-            <a href="{{ url_for('admin_view_user', username=u.username) }}"
-               class="btn btn-sm btn-outline-primary me-1" title="View Data">
-              <i class="bi bi-eye"></i>
-            </a>
-            {% if u.username != 'admin' %}
-            <form method="post" action="{{ url_for('admin_delete_user', username=u.username) }}"
-                  class="d-inline" onsubmit="return confirm('Delete user {{ u.username }}?')">
-              <button class="btn btn-sm btn-outline-danger" title="Delete User">
-                <i class="bi bi-person-x"></i>
-              </button>
-            </form>
+            {% if u.expired > 0 %}
+              <span class="badge bg-danger rounded-pill">{{ u.expired }}</span>
+            {% else %}
+              <span class="text-muted small">0</span>
             {% endif %}
+          </td>
+
+          <td class="text-center">
+            {% if u.expiring > 0 %}
+              <span class="badge bg-warning text-dark rounded-pill">{{ u.expiring }}</span>
+            {% else %}
+              <span class="text-muted small">0</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center">
+            {% if u.low > 0 %}
+              <span class="badge status-low">{{ u.low }}</span>
+            {% else %}
+              <span class="text-muted small">0</span>
+            {% endif %}
+          </td>
+
+          <td class="fw-bold text-success">₹{{ "{:,.2f}".format(u.value|float) }}</td>
+
+          <td class="text-end">
+            <div class="btn-group">
+              <a href="{{ url_for('admin_view_user', username=u.username) }}" class="btn btn-sm btn-outline-primary" title="Inspect User's Inventory">
+                <i class="bi bi-eye-fill me-1"></i>View Data
+              </a>
+              {% if u.username.lower() != 'admin' %}
+              <form method="post" action="{{ url_for('admin_delete_user', username=u.username) }}" class="d-inline"
+                    onsubmit="return confirm('Permanently delete account for {{ u.username }} and erase their medicine store?')">
+                <button class="btn btn-sm btn-outline-danger" title="Delete User">
+                  <i class="bi bi-person-x"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% endfor %}

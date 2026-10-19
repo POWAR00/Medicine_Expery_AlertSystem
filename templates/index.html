@@ -1,120 +1,705 @@
 {% extends "base.html" %}
+{% block title %}Dashboard — MediAlert Pro{% endblock %}
+
 {% block content %}
+<!-- Welcome & Quick Action Header -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1" style="letter-spacing:-0.03em;">
+      Pharmacy Inventory Dashboard
+    </h2>
+    <p class="text-muted small mb-0">
+      Real-time pharmaceutical expiry tracking, automated stock alerts, and dispensing management.
+    </p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#importModal">
+      <i class="bi bi-file-earmark-arrow-up"></i>
+      <span class="d-none d-sm-inline">Import CSV</span>
+    </button>
+    <a href="{{ url_for('export_csv') }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+      <i class="bi bi-download"></i>
+      <span class="d-none d-sm-inline">Export</span>
+    </a>
+    <a href="{{ url_for('add') }}" class="btn btn-gradient-primary d-inline-flex align-items-center gap-2">
+      <i class="bi bi-plus-circle"></i>
+      <span>Add Medicine</span>
+    </a>
+  </div>
+</div>
 
-<div class="page-title"><i class="bi bi-house-door me-2"></i>Dashboard</div>
-
-<!-- Stat Cards -->
+<!-- ── 4 Stat Cards ── -->
 <div class="row g-3 mb-4">
+  <!-- Total Medicines -->
   <div class="col-sm-6 col-xl-3">
-    <div class="card stat-card p-3" style="border-left:4px solid #1a3c5e">
-      <div class="d-flex justify-content-between align-items-center">
+    <div class="stat-card-gradient">
+      <div class="d-flex justify-content-between align-items-start">
         <div>
-          <div class="text-muted small">Total Medicines</div>
-          <div class="fs-2 fw-bold text-primary">{{ stats.total }}</div>
+          <span class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.06em;">Total Medicines</span>
+          <h2 class="fw-bold my-2" style="color:var(--primary-accent);">{{ stats.total }}</h2>
+          <div class="small text-muted d-flex align-items-center gap-1">
+            <i class="bi bi-boxes text-primary"></i>
+            <span>{{ stats.units }} total units in catalog</span>
+          </div>
         </div>
-        <i class="bi bi-capsule fs-1 text-primary opacity-25"></i>
+        <div class="stat-icon-wrapper" style="background:rgba(2, 132, 199, 0.12); color:#0284c7;">
+          <i class="bi bi-capsule"></i>
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- Expired -->
   <div class="col-sm-6 col-xl-3">
-    <div class="card stat-card p-3" style="border-left:4px solid #dc3545">
-      <div class="d-flex justify-content-between align-items-center">
+    <div class="stat-card-gradient">
+      <div class="d-flex justify-content-between align-items-start">
         <div>
-          <div class="text-muted small">Expired</div>
-          <div class="fs-2 fw-bold text-danger">{{ stats.expired }}</div>
+          <span class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.06em;">Expired Items</span>
+          <h2 class="fw-bold my-2 text-danger">{{ stats.expired }}</h2>
+          <div class="small {% if stats.expired > 0 %}text-danger fw-semibold{% else %}text-muted{% endif %} d-flex align-items-center gap-1">
+            {% if stats.expired > 0 %}
+              <i class="bi bi-exclamation-octagon-fill"></i> Quarantine immediately
+            {% else %}
+              <i class="bi bi-check-circle-fill text-success"></i> No expired items
+            {% endif %}
+          </div>
         </div>
-        <i class="bi bi-x-circle fs-1 text-danger opacity-25"></i>
+        <div class="stat-icon-wrapper" style="background:rgba(239, 68, 68, 0.12); color:#ef4444;">
+          <i class="bi bi-x-octagon"></i>
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- Expiring Soon -->
   <div class="col-sm-6 col-xl-3">
-    <div class="card stat-card p-3" style="border-left:4px solid #fd7e14">
-      <div class="d-flex justify-content-between align-items-center">
+    <div class="stat-card-gradient">
+      <div class="d-flex justify-content-between align-items-start">
         <div>
-          <div class="text-muted small">Expiring Soon</div>
-          <div class="fs-2 fw-bold text-warning">{{ stats.expiring }}</div>
+          <span class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.06em;">Expiring Soon (&le;30d)</span>
+          <h2 class="fw-bold my-2 text-warning">{{ stats.expiring }}</h2>
+          <div class="small text-warning-emphasis d-flex align-items-center gap-1">
+            <i class="bi bi-clock-history"></i> Priority dispense candidate
+          </div>
         </div>
-        <i class="bi bi-clock-history fs-1 text-warning opacity-25"></i>
+        <div class="stat-icon-wrapper" style="background:rgba(245, 158, 11, 0.12); color:#f59e0b;">
+          <i class="bi bi-hourglass-split"></i>
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- Inventory Valuation -->
   <div class="col-sm-6 col-xl-3">
-    <div class="card stat-card p-3" style="border-left:4px solid #198754">
-      <div class="d-flex justify-content-between align-items-center">
+    <div class="stat-card-gradient">
+      <div class="d-flex justify-content-between align-items-start">
         <div>
-          <div class="text-muted small">Inventory Value</div>
-          <div class="fs-4 fw-bold text-success">Rs. {{ "%.0f"|format(stats.value) }}</div>
+          <span class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.06em;">Total Valuation</span>
+          <h2 class="fw-bold my-2 text-success">₹{{ "{:,.2f}".format(stats.value) }}</h2>
+          <div class="small text-muted d-flex align-items-center gap-1">
+            <i class="bi bi-graph-up-arrow text-success"></i> Realized inventory worth
+          </div>
         </div>
-        <i class="bi bi-currency-rupee fs-1 text-success opacity-25"></i>
+        <div class="stat-icon-wrapper" style="background:rgba(16, 185, 129, 0.12); color:#10b981;">
+          <i class="bi bi-currency-rupee"></i>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Search bar inline -->
-<form action="{{ url_for('search') }}" method="get" class="mb-3 d-flex gap-2" style="max-width:400px">
-  <input name="q" class="form-control" placeholder="Quick search medicine..."/>
-  <button class="btn btn-primary"><i class="bi bi-search"></i></button>
-</form>
-
-<!-- Table -->
-<div class="card table-card">
-  <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-    <span class="fw-semibold text-dark"><i class="bi bi-table me-2"></i>All Medicines</span>
-    <a href="{{ url_for('add') }}" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add New</a>
+<!-- ── Interactive Analytics Section ── -->
+<div class="row g-3 mb-4">
+  <!-- Stock Status Donut Chart -->
+  <div class="col-lg-5">
+    <div class="card-modern p-4 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Inventory Health Breakdown</h6>
+        <span class="badge rounded-pill bg-light text-muted border">Live Status</span>
+      </div>
+      <div class="d-flex align-items-center justify-content-center" style="height: 240px; position:relative;">
+        <canvas id="healthDonutChart"></canvas>
+      </div>
+      <div class="row text-center mt-3 pt-2 border-top g-2">
+        <div class="col-3">
+          <div class="small text-muted">Good</div>
+          <div class="fw-bold text-success">{{ stats.total - stats.expired - stats.expiring }}</div>
+        </div>
+        <div class="col-3">
+          <div class="small text-muted">Expiring</div>
+          <div class="fw-bold text-warning">{{ stats.expiring }}</div>
+        </div>
+        <div class="col-3">
+          <div class="small text-muted">Expired</div>
+          <div class="fw-bold text-danger">{{ stats.expired }}</div>
+        </div>
+        <div class="col-3">
+          <div class="small text-muted">Low Stock</div>
+          <div class="fw-bold text-orange" style="color:#ea580c;">{{ stats.low }}</div>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <!-- Stock Distribution Bar Chart -->
+  <div class="col-lg-7">
+    <div class="card-modern p-4 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-bar-chart-line-fill text-success me-2"></i>Top Stock Levels by Medicine</h6>
+        <a href="{{ url_for('report') }}" class="small text-primary fw-semibold text-decoration-none">Full Audit Report &rarr;</a>
+      </div>
+      <div style="height: 270px;">
+        <canvas id="stockBarChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main Medicines Table with Instant Filtering & Search ── -->
+<div class="card-modern">
+  <!-- Filter Toolbar -->
+  <div class="p-3 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+    <!-- Filter Pills -->
+    <div class="nav nav-pills gap-1" id="filterTabs">
+      <button class="nav-link active px-3 py-1 rounded-pill small fw-semibold" onclick="filterMedicines('all', this)">
+        All <span class="badge bg-secondary ms-1 rounded-pill">{{ meds|length }}</span>
+      </button>
+      <button class="nav-link px-3 py-1 rounded-pill small fw-semibold text-warning-emphasis" onclick="filterMedicines('expiring', this)">
+        <i class="bi bi-clock-history me-1"></i>Expiring Soon
+        {% if stats.expiring > 0 %}<span class="badge bg-warning text-dark ms-1 rounded-pill">{{ stats.expiring }}</span>{% endif %}
+      </button>
+      <button class="nav-link px-3 py-1 rounded-pill small fw-semibold text-danger" onclick="filterMedicines('expired', this)">
+        <i class="bi bi-x-circle me-1"></i>Expired
+        {% if stats.expired > 0 %}<span class="badge bg-danger ms-1 rounded-pill">{{ stats.expired }}</span>{% endif %}
+      </button>
+      <button class="nav-link px-3 py-1 rounded-pill small fw-semibold" style="color:#ea580c;" onclick="filterMedicines('low', this)">
+        <i class="bi bi-box-seam me-1"></i>Low Stock
+        {% if stats.low > 0 %}<span class="badge ms-1 rounded-pill" style="background:#ea580c;">{{ stats.low }}</span>{% endif %}
+      </button>
+      <button class="nav-link px-3 py-1 rounded-pill small fw-semibold text-success" onclick="filterMedicines('good', this)">
+        <i class="bi bi-check-circle me-1"></i>Healthy
+      </button>
+    </div>
+
+    <!-- Live Search Input -->
+    <div class="input-group" style="max-width:320px;">
+      <span class="input-group-text bg-transparent border-end-0 text-muted">
+        <i class="bi bi-search"></i>
+      </span>
+      <input type="text" id="liveSearchInput" class="form-control border-start-0" placeholder="Filter by name, ID, batch..." onkeyup="searchTable()"/>
+    </div>
+  </div>
+
+  <!-- Table Responsive Container -->
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
+    <table class="table-modern" id="medTable">
       <thead>
         <tr>
-          <th>ID</th><th>Name</th><th>Batch</th>
-          <th>Qty</th><th>Expiry</th><th>Price</th>
-          <th>Supplier</th><th>Status</th><th>Actions</th>
+          <th>Medicine &amp; ID</th>
+          <th>Batch Number</th>
+          <th>Current Stock</th>
+          <th>Expiry Date</th>
+          <th>Unit Price</th>
+          <th>Stock Value</th>
+          <th>Supplier Contact</th>
+          <th>Status</th>
+          <th class="text-end">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for m in meds %}
-        <tr>
-          <td class="fw-semibold">{{ m.medicine_id }}</td>
-          <td>{{ m.medicine_name }}</td>
-          <td class="text-muted small">{{ m.batch_number }}</td>
+        <tr class="med-row" 
+            data-status="{{ m.status }}" 
+            data-low="{{ 'true' if m.low_stock else 'false' }}"
+            data-name="{{ m.medicine_name|lower }}"
+            data-id="{{ m.medicine_id|lower }}"
+            data-batch="{{ m.batch_number|lower }}">
+          
+          <!-- Medicine & ID -->
           <td>
-            {{ m.quantity }}
-            {% if m.low_stock %}<span class="badge badge-lowstock ms-1">Low</span>{% endif %}
+            <div class="d-flex align-items-center gap-2">
+              <div class="p-2 rounded-3 text-primary d-none d-sm-block" style="background:rgba(2, 132, 199, 0.08);">
+                <i class="bi bi-capsule fs-5"></i>
+              </div>
+              <div>
+                <a href="javascript:void(0)" class="fw-bold text-decoration-none text-main" onclick="openDetailModal('{{ m.medicine_id }}')">
+                  {{ m.medicine_name }}
+                </a>
+                <div class="small text-muted font-monospace">{{ m.medicine_id }}</div>
+              </div>
+            </div>
           </td>
+
+          <!-- Batch -->
           <td>
-            {{ m.expiry_date }}
-            {% if m.status == "expired" %}
-              <span class="badge badge-expired ms-1">Expired</span>
-            {% elif m.status == "expiring" %}
-              <span class="badge badge-expiring ms-1">{{ m.days_left }}d left</span>
-            {% endif %}
+            <span class="badge bg-light text-muted border font-monospace">
+              {{ m.batch_number }}
+            </span>
           </td>
-          <td>Rs. {{ m.price }}</td>
-          <td class="small text-muted">{{ m.supplier_name }}</td>
+
+          <!-- Stock Quantity -->
           <td>
-            {% if m.status == "expired" %}
-              <span class="badge badge-expired">Expired</span>
-            {% elif m.status == "expiring" %}
-              <span class="badge badge-expiring">Expiring</span>
+            <div class="d-flex align-items-center gap-2">
+              <span class="fw-bold fs-6 {% if m.low_stock %}text-danger{% endif %}">
+                {{ m.quantity }}
+              </span>
+              {% if m.low_stock %}
+                <span class="badge status-low">Low (&le;10)</span>
+              {% endif %}
+            </div>
+          </td>
+
+          <!-- Expiry Date -->
+          <td>
+            <div class="fw-semibold">{{ m.expiry_date }}</div>
+            {% if m.status == 'expired' %}
+              <span class="badge bg-danger rounded-pill">{{ m.days_left|abs }} days expired</span>
+            {% elif m.status == 'expiring' %}
+              <span class="badge bg-warning text-dark rounded-pill">{{ m.days_left }} days remaining</span>
             {% else %}
-              <span class="badge badge-ok">Good</span>
+              <span class="small text-muted">{{ m.days_left }} days left</span>
             {% endif %}
           </td>
+
+          <!-- Unit Price -->
+          <td>₹{{ "%.2f"|format(m.price|float) }}</td>
+
+          <!-- Stock Value -->
+          <td class="fw-semibold text-success">
+            ₹{{ "{:,.2f}".format(m.stock_value|float) }}
+          </td>
+
+          <!-- Supplier -->
           <td>
-            <a href="{{ url_for('dispense', med_id=m.medicine_id) }}" class="btn btn-sm btn-success me-1" title="Dispense"><i class="bi bi-capsule"></i></a>
-            <a href="{{ url_for('edit', med_id=m.medicine_id) }}" class="btn btn-sm btn-outline-primary me-1" title="Edit"><i class="bi bi-pencil"></i></a>
-            <form method="post" action="{{ url_for('delete', med_id=m.medicine_id) }}" class="d-inline"
-                  onsubmit="return confirm('Delete {{ m.medicine_name }}?')">
-              <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
-            </form>
+            <div class="small fw-semibold">{{ m.supplier_name }}</div>
+            <div class="small text-muted">
+              {% if m.contact_number and m.contact_number != '—' %}
+                <a href="tel:{{ m.contact_number }}" class="text-decoration-none text-muted">
+                  <i class="bi bi-telephone me-1"></i>{{ m.contact_number }}
+                </a>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </div>
+          </td>
+
+          <!-- Status Pill -->
+          <td>
+            {% if m.status == 'expired' %}
+              <span class="status-pill status-expired">Expired</span>
+            {% elif m.status == 'expiring' %}
+              <span class="status-pill status-expiring">Expiring Soon</span>
+            {% elif m.low_stock %}
+              <span class="status-pill status-low">Low Stock</span>
+            {% else %}
+              <span class="status-pill status-ok">Good Stock</span>
+            {% endif %}
+          </td>
+
+          <!-- Actions -->
+          <td class="text-end">
+            <div class="btn-group">
+              <!-- Quick Dispense -->
+              <button class="btn btn-sm btn-outline-success" 
+                      title="Quick Dispense"
+                      onclick="openDispenseModal('{{ m.medicine_id }}', '{{ m.medicine_name|replace('\'', '\\\'') }}', {{ m.quantity }})">
+                <i class="bi bi-capsule"></i>
+              </button>
+
+              <!-- Quick Restock -->
+              <button class="btn btn-sm btn-outline-primary"
+                      title="Quick Restock (+ Stock)"
+                      onclick="openRestockModal('{{ m.medicine_id }}', '{{ m.medicine_name|replace('\'', '\\\'') }}', {{ m.quantity }})">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+
+              <!-- Medicine Label & Info -->
+              <button class="btn btn-sm btn-outline-secondary"
+                      title="Medicine Details &amp; Label"
+                      onclick="openDetailModal('{{ m.medicine_id }}')">
+                <i class="bi bi-qr-code"></i>
+              </button>
+
+              <!-- Edit -->
+              <a href="{{ url_for('edit', med_id=m.medicine_id) }}" class="btn btn-sm btn-outline-secondary" title="Edit Medicine">
+                <i class="bi bi-pencil"></i>
+              </a>
+
+              <!-- Delete Form -->
+              <form method="post" action="{{ url_for('delete', med_id=m.medicine_id) }}" class="d-inline"
+                    onsubmit="return confirm('Are you sure you want to delete {{ m.medicine_name }}?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Medicine">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </form>
+            </div>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="9" class="text-center text-muted py-4">No medicines found. <a href="{{ url_for('add') }}">Add one?</a></td></tr>
+        <tr>
+          <td colspan="9" class="text-center py-5">
+            <div class="text-muted">
+              <i class="bi bi-inbox fs-1 d-block mb-2 text-primary opacity-50"></i>
+              <h5>No Medicines Found in Inventory</h5>
+              <p class="small mb-3">Get started by adding your first medicine batch or import from CSV.</p>
+              <a href="{{ url_for('add') }}" class="btn btn-gradient-primary">
+                <i class="bi bi-plus-lg me-1"></i>Add Medicine Now
+              </a>
+            </div>
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     MODALS: Quick Dispense, Quick Restock, Medicine Details & Label
+     ════════════════════════════════════════════════════════════════ -->
+
+<!-- Quick Dispense Modal -->
+<div class="modal fade" id="quickDispenseModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content card-modern" style="border-radius:18px;">
+      <div class="modal-header border-bottom py-3">
+        <h5 class="modal-title fw-bold text-success">
+          <i class="bi bi-capsule me-2"></i>Quick Dispense Medicine
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="quickDispenseForm" method="post">
+        <div class="modal-body p-4">
+          <div class="p-3 rounded-3 mb-3" style="background:rgba(16, 185, 129, 0.08); border-left:4px solid #10b981;">
+            <div class="small text-muted">Selected Medicine:</div>
+            <div class="fw-bold fs-5" id="dispenseMedName"></div>
+            <div class="small text-muted">Currently Available: <strong id="dispenseMaxQty" class="text-success"></strong> units</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Quantity to Dispense <span class="text-danger">*</span></label>
+            <input type="number" name="qty_used" id="dispenseInputQty" class="form-control form-control-lg" min="1" required placeholder="e.g. 5">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Dispensed By</label>
+            <input type="text" name="dispensed_by" class="form-control" value="{{ current_user.username }}">
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label fw-semibold">Patient Note / Prescription Reference</label>
+            <input type="text" name="note" class="form-control" placeholder="e.g. Ward 4 / OPD Patient">
+          </div>
+        </div>
+        <div class="modal-footer border-top p-3">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success fw-bold px-4">
+            <i class="bi bi-check2-circle me-1"></i>Confirm Dispense
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Restock Modal -->
+<div class="modal fade" id="quickRestockModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content card-modern" style="border-radius:18px;">
+      <div class="modal-header border-bottom py-3">
+        <h5 class="modal-title fw-bold text-primary">
+          <i class="bi bi-plus-circle-fill me-2"></i>Quick Restock (+ Units)
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="quickRestockForm" method="post">
+        <div class="modal-body p-4">
+          <div class="p-3 rounded-3 mb-3" style="background:rgba(2, 132, 199, 0.08); border-left:4px solid var(--primary-accent);">
+            <div class="small text-muted">Selected Medicine:</div>
+            <div class="fw-bold fs-5" id="restockMedName"></div>
+            <div class="small text-muted">Current Stock: <strong id="restockCurrentQty" class="text-primary"></strong> units</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Units to Add <span class="text-danger">*</span></label>
+            <input type="number" name="add_quantity" class="form-control form-control-lg" min="1" required placeholder="e.g. 50">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Update Expiry Date <span class="text-muted fw-normal">(optional)</span></label>
+            <input type="date" name="new_expiry" class="form-control">
+            <div class="form-text">Leave blank to retain current batch expiry date.</div>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label fw-semibold">Received / Restocked By</label>
+            <input type="text" name="changed_by" class="form-control" value="{{ current_user.username }}">
+          </div>
+        </div>
+        <div class="modal-footer border-top p-3">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary fw-bold px-4">
+            <i class="bi bi-box-arrow-in-down me-1"></i>Add to Inventory
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Medicine Details & Pharmacy Label Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content card-modern" style="border-radius:18px;">
+      <div class="modal-header border-bottom py-3">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-prescription2 text-primary me-2"></i>Medicine Spec &amp; Pharmacy Label
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4" id="detailModalContent">
+        <!-- Injected via JavaScript -->
+      </div>
+      <div class="modal-footer border-top p-3">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+          <i class="bi bi-printer me-1"></i>Print Medication Label
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── JSON data for client-side modal population ──
+  const MED_DATA = {
+    {% for m in meds %}
+    "{{ m.medicine_id }}": {
+      id: "{{ m.medicine_id }}",
+      name: "{{ m.medicine_name|replace('"', '\\"') }}",
+      batch: "{{ m.batch_number }}",
+      qty: {{ m.quantity }},
+      expiry: "{{ m.expiry_date }}",
+      daysLeft: {{ m.days_left }},
+      price: "{{ m.price }}",
+      stockValue: "{{ m.stock_value }}",
+      status: "{{ m.status }}",
+      supplier: "{{ m.supplier_name|replace('"', '\\"') }}",
+      phone: "{{ m.contact_number }}",
+      email: "{{ m.supplier_email }}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  };
+
+  // ── Chart.js Visualizations ──
+  document.addEventListener('DOMContentLoaded', function() {
+    // 1. Health Status Donut Chart
+    const ctxDonut = document.getElementById('healthDonutChart');
+    if (ctxDonut) {
+      new Chart(ctxDonut, {
+        type: 'doughnut',
+        data: {
+          labels: ['Good Stock', 'Expiring Soon', 'Expired', 'Low Stock'],
+          datasets: [{
+            data: [
+              Math.max(0, {{ stats.total - stats.expired - stats.expiring }}),
+              {{ stats.expiring }},
+              {{ stats.expired }},
+              {{ stats.low }}
+            ],
+            backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#ea580c'],
+            borderWidth: 2,
+            borderColor: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? '#131d31' : '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Plus Jakarta Sans', size: 11 } } }
+          },
+          cutout: '68%'
+        }
+      });
+    }
+
+    // 2. Stock Distribution Bar Chart
+    const ctxBar = document.getElementById('stockBarChart');
+    if (ctxBar) {
+      const medLabels = [{% for m in meds[:8] %}"{{ m.medicine_name[:14] }}"{% if not loop.last %},{% endif %}{% endfor %}];
+      const medStock  = [{% for m in meds[:8] %}{{ m.quantity }}{% if not loop.last %},{% endif %}{% endfor %}];
+      
+      new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+          labels: medLabels,
+          datasets: [{
+            label: 'Stock Units',
+            data: medStock,
+            backgroundColor: 'rgba(2, 132, 199, 0.75)',
+            hoverBackgroundColor: '#0284c7',
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(226, 232, 240, 0.4)' } },
+            x: { grid: { display: false } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+  });
+
+  // ── Quick Filter Tabs ──
+  function filterMedicines(category, tabBtn) {
+    // update active tab
+    document.querySelectorAll('#filterTabs .nav-link').forEach(btn => btn.classList.remove('active'));
+    tabBtn.classList.add('active');
+
+    const rows = document.querySelectorAll('.med-row');
+    rows.forEach(row => {
+      const status = row.getAttribute('data-status');
+      const isLow  = row.getAttribute('data-low') === 'true';
+
+      if (category === 'all') {
+        row.style.display = '';
+      } else if (category === 'expiring' && status === 'expiring') {
+        row.style.display = '';
+      } else if (category === 'expired' && status === 'expired') {
+        row.style.display = '';
+      } else if (category === 'low' && isLow) {
+        row.style.display = '';
+      } else if (category === 'good' && status === 'ok' && !isLow) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  // ── Live Table Search ──
+  function searchTable() {
+    const query = document.getElementById('liveSearchInput').value.toLowerCase().trim();
+    const rows  = document.querySelectorAll('.med-row');
+    rows.forEach(row => {
+      const name  = row.getAttribute('data-name');
+      const id    = row.getAttribute('data-id');
+      const batch = row.getAttribute('data-batch');
+      if (name.includes(query) || id.includes(query) || batch.includes(query)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  // ── Modal Handlers ──
+  function openDispenseModal(medId, medName, maxQty) {
+    document.getElementById('dispenseMedName').textContent = medName;
+    document.getElementById('dispenseMaxQty').textContent = maxQty;
+    const input = document.getElementById('dispenseInputQty');
+    input.max = maxQty;
+    input.value = '';
+    document.getElementById('quickDispenseForm').action = '/quick-dispense/' + encodeURIComponent(medId);
+    new bootstrap.Modal(document.getElementById('quickDispenseModal')).show();
+  }
+
+  function openRestockModal(medId, medName, currentQty) {
+    document.getElementById('restockMedName').textContent = medName;
+    document.getElementById('restockCurrentQty').textContent = currentQty;
+    document.getElementById('quickRestockForm').action = '/quick-restock/' + encodeURIComponent(medId);
+    new bootstrap.Modal(document.getElementById('quickRestockModal')).show();
+  }
+
+  function openDetailModal(medId) {
+    const med = MED_DATA[medId];
+    if (!med) return;
+
+    let badgeClass = 'status-ok';
+    let badgeText = 'Good Stock';
+    if (med.status === 'expired') {
+      badgeClass = 'status-expired';
+      badgeText = 'Expired (' + Math.abs(med.daysLeft) + 'd ago)';
+    } else if (med.status === 'expiring') {
+      badgeClass = 'status-expiring';
+      badgeText = 'Expiring in ' + med.daysLeft + ' days';
+    } else if (med.qty <= 10) {
+      badgeClass = 'status-low';
+      badgeText = 'Low Stock (' + med.qty + ' left)';
+    }
+
+    const html = `
+      <div class="row g-4">
+        <div class="col-md-7">
+          <div class="border rounded-4 p-4 shadow-sm" style="background:var(--bg-body);">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="badge bg-primary text-uppercase font-monospace">${med.id}</span>
+              <span class="status-pill ${badgeClass}">${badgeText}</span>
+            </div>
+            <h3 class="fw-bold mb-1">${med.name}</h3>
+            <div class="text-muted small mb-3">Batch Number: <code class="fw-bold">${med.batch}</code></div>
+
+            <div class="row g-3 pt-2 border-top">
+              <div class="col-6">
+                <div class="small text-muted">Stock Quantity</div>
+                <div class="fw-bold fs-5 text-primary">${med.qty} Units</div>
+              </div>
+              <div class="col-6">
+                <div class="small text-muted">Unit Price</div>
+                <div class="fw-bold fs-5">₹${parseFloat(med.price).toFixed(2)}</div>
+              </div>
+              <div class="col-6">
+                <div class="small text-muted">Expiry Date</div>
+                <div class="fw-bold text-danger">${med.expiry}</div>
+              </div>
+              <div class="col-6">
+                <div class="small text-muted">Total Stock Value</div>
+                <div class="fw-bold fs-5 text-success">₹${parseFloat(med.stockValue).toFixed(2)}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Supplier Box -->
+          <div class="card-modern p-3 mt-3">
+            <h6 class="fw-bold small text-uppercase text-muted mb-2"><i class="bi bi-truck me-1"></i>Supplier Details</h6>
+            <div class="fw-bold">${med.supplier}</div>
+            <div class="d-flex gap-2 mt-2">
+              ${med.phone && med.phone !== '—' ? `<a href="tel:${med.phone}" class="btn btn-sm btn-outline-success"><i class="bi bi-telephone-fill me-1"></i>Call Supplier</a>` : ''}
+              ${med.phone && med.phone !== '—' ? `<a href="https://wa.me/${med.phone.replace(/[^0-9]/g, '')}" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>` : ''}
+              ${med.email && med.email !== '—' ? `<a href="mailto:${med.email}" class="btn btn-sm btn-outline-primary"><i class="bi bi-envelope-fill me-1"></i>Email</a>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulated Barcode / QR Sticker Label -->
+        <div class="col-md-5">
+          <div class="border border-2 border-dark rounded-3 p-3 text-center bg-white text-dark shadow-sm">
+            <div class="small fw-bold text-uppercase" style="letter-spacing:1px;">CLINICAL PHARMACY DISPENSARY</div>
+            <hr class="my-2">
+            <div class="fw-bold fs-6">${med.name}</div>
+            <div class="small text-muted font-monospace">ID: ${med.id} | BATCH: ${med.batch}</div>
+            <div class="my-3 py-2 px-2 bg-light rounded font-monospace" style="letter-spacing:4px; font-size:1.3rem; border:1px dashed #999;">
+              ||| | |||| || ||| ||||
+              <div style="font-size:0.65rem; letter-spacing:1px; color:#555;">*${med.id}-${med.batch}*</div>
+            </div>
+            <div class="d-flex justify-content-between small fw-bold px-1">
+              <span>EXP: ${med.expiry}</span>
+              <span>MRP: ₹${med.price}</span>
+            </div>
+            <div class="text-xs text-muted mt-2 border-top pt-1">Keep stored below 25°C in a dry place. Keep out of reach of children.</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('detailModalContent').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('detailModal')).show();
+  }
+</script>
 {% endblock %}

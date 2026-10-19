@@ -1,200 +1,835 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Medicine Alert System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+  <title>{% block title %}MediAlert Pro — Medicine Expiry & Inventory Alert System{% endblock %}</title>
+  
+  <!-- Modern Typography: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Bootstrap 5.3 & Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+  
+  <!-- Chart.js for Interactive Visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
   <style>
-    body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
+    :root {
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      
+      /* Light Theme Colors */
+      --bg-body: #f8fafc;
+      --bg-sidebar: #0f172a;
+      --bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+      --bg-card: #ffffff;
+      --border-color: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      
+      /* Brand Accents */
+      --primary-accent: #0284c7;
+      --primary-gradient: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      --emerald-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      --rose-gradient: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+      --amber-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      --purple-gradient: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+      
+      --card-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+      --card-hover-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.12), 0 4px 10px -2px rgba(15, 23, 42, 0.06);
+    }
 
-    /* Sidebar */
+    [data-bs-theme="dark"] {
+      --bg-body: #0b1120;
+      --bg-sidebar: #070d19;
+      --bg-sidebar-hover: rgba(255, 255, 255, 0.06);
+      --bg-card: #131d31;
+      --border-color: #1e293b;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+      --card-hover-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.55);
+    }
+
+    body {
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    /* ── Sidebar Desktop ── */
     .sidebar {
-      width: 240px; min-height: 100vh;
-      background: linear-gradient(180deg, #1a3c5e 0%, #0d2137 100%);
-      position: fixed; top: 0; left: 0; padding-top: 1.5rem;
-      box-shadow: 3px 0 12px rgba(0,0,0,.3);
+      width: 260px;
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background: var(--bg-sidebar);
+      display: flex;
+      flex-direction: column;
+      z-index: 1030;
+      border-right: 1px solid rgba(255, 255, 255, 0.07);
+      box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .sidebar .brand {
-      color: #fff; font-size: 1.1rem; font-weight: 700;
-      padding: 0 1.2rem 1.2rem; border-bottom: 1px solid rgba(255,255,255,.1);
-      display: flex; align-items: center; gap: .5rem;
+
+    .sidebar-brand {
+      padding: 1.5rem 1.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      text-decoration: none;
     }
+
+    .brand-icon-box {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.35rem;
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);
+    }
+
+    .brand-title {
+      font-size: 1.18rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .brand-sub {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .sidebar-menu {
+      padding: 1.2rem 0.85rem;
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    .nav-category {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.4);
+      padding: 0.8rem 0.85rem 0.4rem;
+    }
+
     .sidebar .nav-link {
-      color: rgba(255,255,255,.75); padding: .6rem 1.2rem;
-      border-radius: .4rem; margin: .1rem .6rem;
-      display: flex; align-items: center; gap: .6rem;
-      transition: all .2s;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 0.68rem 0.95rem;
+      border-radius: 10px;
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: all 0.2s ease;
+      position: relative;
     }
-    .sidebar .nav-link:hover, .sidebar .nav-link.active {
-      background: rgba(255,255,255,.15); color: #fff;
+
+    .sidebar .nav-link:hover {
+      background: var(--bg-sidebar-hover);
+      color: #ffffff;
+      transform: translateX(3px);
     }
-    .sidebar .nav-link i { font-size: 1.1rem; }
 
-    /* Main */
-    .main { margin-left: 240px; padding: 1.8rem; }
-
-    /* Stat cards */
-    .stat-card {
-      border: none; border-radius: 1rem;
-      box-shadow: 0 2px 12px rgba(0,0,0,.08);
-      transition: transform .2s;
+    .sidebar .nav-link.active {
+      background: linear-gradient(90deg, rgba(14, 165, 233, 0.25) 0%, rgba(14, 165, 233, 0.08) 100%);
+      color: #38bdf8;
+      font-weight: 600;
+      border-left: 3px solid #38bdf8;
     }
-    .stat-card:hover { transform: translateY(-3px); }
 
-    /* Table card */
-    .table-card {
-      border: none; border-radius: 1rem;
-      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    .sidebar .nav-link i {
+      font-size: 1.15rem;
+      opacity: 0.85;
+    }
+
+    .sidebar .nav-link.active i {
+      color: #38bdf8;
+      opacity: 1;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      font-size: 0.72rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 20px;
+      font-weight: 700;
+    }
+
+    .sidebar-user {
+      padding: 1rem 1.2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    .user-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+    }
+
+    /* ── Main Layout & Header ── */
+    .app-wrapper {
+      margin-left: 260px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .top-navbar {
+      height: 72px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 1020;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    [data-bs-theme="dark"] .top-navbar {
+      background: rgba(19, 29, 49, 0.85);
+    }
+
+    .main-content {
+      padding: 2rem;
+      flex: 1;
+    }
+
+    /* ── UI Elements & Cards ── */
+    .card-modern {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
       overflow: hidden;
     }
-    .table thead th {
-      background: #1a3c5e; color: #fff;
-      font-weight: 600; border: none;
+
+    .card-modern:hover {
+      box-shadow: var(--card-hover-shadow);
     }
-    .table tbody tr:hover { background: #eef3f9; }
 
-    /* Badges */
-    .badge-expired  { background:#dc3545; }
-    .badge-expiring { background:#fd7e14; }
-    .badge-ok       { background:#198754; }
-    .badge-lowstock { background:#ffc107; color:#000; }
+    .stat-card-gradient {
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      padding: 1.5rem;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
 
-    /* Page title */
-    .page-title { font-size: 1.5rem; font-weight: 700; color: #1a3c5e; margin-bottom: 1.4rem; }
+    .stat-card-gradient:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--card-hover-shadow);
+    }
 
-    /* Alerts */
-    .alert { border-radius: .7rem; }
+    .stat-icon-wrapper {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+    }
 
-    /* Global alert banner */
-    .global-alert-bar {
-      border-radius: .7rem;
-      font-size: .92rem;
+    /* Custom Tables */
+    .table-modern {
+      width: 100%;
+      margin-bottom: 0;
+    }
+
+    .table-modern thead th {
+      background: rgba(2, 132, 199, 0.04);
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid var(--border-color);
+      border-top: none;
+    }
+
+    [data-bs-theme="dark"] .table-modern thead th {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .table-modern tbody td {
+      padding: 1rem 1.2rem;
+      vertical-align: middle;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.9rem;
+      color: var(--text-main);
+    }
+
+    .table-modern tbody tr {
+      transition: background-color 0.15s ease;
+    }
+
+    .table-modern tbody tr:hover {
+      background-color: rgba(2, 132, 199, 0.03);
+    }
+
+    [data-bs-theme="dark"] .table-modern tbody tr:hover {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Status Badges */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 30px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .status-pill::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    .status-ok {
+      background: rgba(16, 185, 129, 0.12);
+      color: #059669;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .status-ok::before { background: #10b981; }
+
+    .status-expiring {
+      background: rgba(245, 158, 11, 0.12);
+      color: #d97706;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .status-expiring::before { background: #f59e0b; animation: pulse 2s infinite; }
+
+    .status-expired {
+      background: rgba(239, 68, 68, 0.12);
+      color: #dc2626;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .status-expired::before { background: #ef4444; animation: pulse 1.5s infinite; }
+
+    .status-low {
+      background: rgba(249, 115, 22, 0.12);
+      color: #c2410c;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+    }
+    .status-low::before { background: #f97316; }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.4); opacity: 0.6; }
+    }
+
+    /* Global Banner Notifications */
+    .banner-alert {
       border: none;
-      box-shadow: 0 2px 10px rgba(0,0,0,.1);
-      animation: slideDown .4s ease;
+      border-radius: 14px;
+      padding: 1rem 1.4rem;
+      margin-bottom: 1.2rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
     }
-    @keyframes slideDown {
-      from { opacity:0; transform:translateY(-10px); }
-      to   { opacity:1; transform:translateY(0); }
+
+    .banner-expired  { background: #fff1f2; border-left: 5px solid #e11d48; }
+    .banner-expiring { background: #fffbeb; border-left: 5px solid #f59e0b; }
+    .banner-low      { background: #fff7ed; border-left: 5px solid #ea580c; }
+
+    [data-bs-theme="dark"] .banner-expired  { background: rgba(225, 29, 72, 0.12); border-left: 5px solid #f43f5e; }
+    [data-bs-theme="dark"] .banner-expiring { background: rgba(245, 158, 11, 0.12); border-left: 5px solid #fbbf24; }
+    [data-bs-theme="dark"] .banner-low      { background: rgba(234, 88, 12, 0.12); border-left: 5px solid #fb923c; }
+
+    /* Buttons */
+    .btn-gradient-primary {
+      background: var(--primary-gradient);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      padding: 0.55rem 1.15rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 3px 10px rgba(2, 132, 199, 0.3);
     }
-    .alert-expired-bar  { background: #fff0f0; border-left: 5px solid #dc3545 !important; }
-    .alert-expiring-bar { background: #fff8ec; border-left: 5px solid #fd7e14 !important; }
-    .alert-low-bar      { background: #fffbe6; border-left: 5px solid #ffc107 !important; }
-    .med-badge-list span {
-      display: inline-block;
-      background: rgba(0,0,0,.07);
-      border-radius: .4rem;
-      padding: .1rem .5rem;
-      margin: .1rem .15rem;
-      font-size: .82rem;
+    .btn-gradient-primary:hover {
+      color: #fff;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(2, 132, 199, 0.4);
+    }
+
+    .btn-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      transition: all 0.2s;
+    }
+    .btn-icon:hover {
+      background: var(--border-color);
+      color: var(--primary-accent);
+    }
+
+    /* Print styling */
+    @media print {
+      .sidebar, .top-navbar, .no-print, .btn, .nav, .modal { display: none !important; }
+      .app-wrapper { margin-left: 0 !important; }
+      body { background: #fff !important; color: #000 !important; }
+      .card-modern { border: 1px solid #ccc !important; box-shadow: none !important; }
+    }
+
+    /* Responsive */
+    @media (max-width: 991.98px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.show { transform: translateX(0); }
+      .app-wrapper { margin-left: 0; }
+      .top-navbar { padding: 0 1rem; }
+      .main-content { padding: 1.2rem; }
     }
   </style>
 </head>
 <body>
 
-<!-- Sidebar -->
-<div class="sidebar">
-  <div class="brand">
-    <i class="bi bi-capsule-pill"></i> MediAlert
-  </div>
-  <nav class="mt-3">
-    <a href="{{ url_for('index') }}"   class="nav-link {% if request.endpoint=='index'   %}active{% endif %}"><i class="bi bi-house-door"></i> Dashboard</a>
-    <a href="{{ url_for('add') }}"     class="nav-link {% if request.endpoint=='add'     %}active{% endif %}"><i class="bi bi-plus-circle"></i> Add Medicine</a>
-    <a href="{{ url_for('search') }}"  class="nav-link {% if request.endpoint=='search'  %}active{% endif %}"><i class="bi bi-search"></i> Search</a>
-    <a href="{{ url_for('alerts') }}"  class="nav-link {% if request.endpoint=='alerts'  %}active{% endif %}"><i class="bi bi-bell"></i> Alerts</a>
-    <a href="{{ url_for('usage') }}"   class="nav-link {% if request.endpoint=='usage'   %}active{% endif %}"><i class="bi bi-capsule"></i> Usage Log</a>
-    <a href="{{ url_for('report') }}"  class="nav-link {% if request.endpoint=='report'  %}active{% endif %}"><i class="bi bi-bar-chart"></i> Report</a>
-    <a href="{{ url_for('send_alert_now') }}" class="nav-link" style="color:#ffc107;">
-      <i class="bi bi-envelope-exclamation"></i> Send Alert Email
+<!-- ── Sidebar Navigation ── -->
+<aside class="sidebar" id="sidebar">
+  <a href="{{ url_for('index') }}" class="sidebar-brand">
+    <div class="brand-icon-box">
+      <i class="bi bi-capsule-pill"></i>
+    </div>
+    <div>
+      <div class="brand-title">MediAlert<span style="color:#38bdf8;">PRO</span></div>
+      <div class="brand-sub">Clinical Pharmacy OS</div>
+    </div>
+  </a>
+
+  <div class="sidebar-menu">
+    <div class="nav-category">Inventory &amp; Operations</div>
+    
+    <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint=='index' %}active{% endif %}">
+      <i class="bi bi-grid-1x2-fill"></i>
+      <span>Dashboard</span>
     </a>
+
+    <a href="{{ url_for('add') }}" class="nav-link {% if request.endpoint=='add' %}active{% endif %}">
+      <i class="bi bi-plus-circle-fill"></i>
+      <span>Add Medicine</span>
+    </a>
+
+    <a href="{{ url_for('alerts') }}" class="nav-link {% if request.endpoint=='alerts' %}active{% endif %}">
+      <i class="bi bi-bell-fill"></i>
+      <span>Alerts Center</span>
+      {% if g_alert_count > 0 %}
+        <span class="badge bg-danger nav-badge">{{ g_alert_count }}</span>
+      {% endif %}
+    </a>
+
+    <a href="{{ url_for('usage') }}" class="nav-link {% if request.endpoint=='usage' %}active{% endif %}">
+      <i class="bi bi-journal-medical"></i>
+      <span>Dispense Log</span>
+    </a>
+
+    <a href="{{ url_for('search') }}" class="nav-link {% if request.endpoint=='search' %}active{% endif %}">
+      <i class="bi bi-search"></i>
+      <span>Search Catalog</span>
+    </a>
+
+    <div class="nav-category">Reports &amp; Tools</div>
+
+    <a href="{{ url_for('report') }}" class="nav-link {% if request.endpoint=='report' %}active{% endif %}">
+      <i class="bi bi-bar-chart-fill"></i>
+      <span>Audit Report</span>
+    </a>
+
+    <a href="{{ url_for('export_csv') }}" class="nav-link">
+      <i class="bi bi-file-earmark-arrow-down-fill"></i>
+      <span>Export Inventory (CSV)</span>
+    </a>
+
+    <a href="javascript:void(0)" class="nav-link" data-bs-toggle="modal" data-bs-target="#importModal">
+      <i class="bi bi-file-earmark-arrow-up-fill"></i>
+      <span>Import Inventory (CSV)</span>
+    </a>
+
+    <a href="{{ url_for('send_alert_now') }}" class="nav-link text-warning">
+      <i class="bi bi-envelope-paper-heart-fill"></i>
+      <span>Send Alert Email</span>
+    </a>
+
     {% if current_user.is_authenticated and current_user.role == 'admin' %}
-    <a href="{{ url_for('admin_panel') }}" class="nav-link {% if request.endpoint and 'admin' in request.endpoint %}active{% endif %}" style="color:#e8a0ff;">
-      <i class="bi bi-shield-lock"></i> Admin Panel
+    <div class="nav-category">Administration</div>
+    <a href="{{ url_for('admin_panel') }}" class="nav-link {% if request.endpoint and 'admin' in request.endpoint %}active{% endif %}" style="color:#c084fc;">
+      <i class="bi bi-shield-lock-fill"></i>
+      <span>Admin Control</span>
+      <span class="badge bg-purple nav-badge" style="background:#7e22ce;">Super</span>
     </a>
     {% endif %}
+  </div>
 
-    <!-- User info + logout at bottom -->
-    <div style="position:absolute; bottom:0; left:0; right:0; padding:1rem 1.2rem;
-                border-top:1px solid rgba(255,255,255,.1);">
-      {% if current_user.is_authenticated %}
-      <div class="text-white-50 small mb-2">
-        <i class="bi bi-person-circle me-1"></i> {{ current_user.username }}
-        <span class="ms-1 badge bg-secondary" style="font-size:.65rem;">{{ current_user.role }}</span>
+  <!-- Bottom User Profile Card -->
+  {% if current_user.is_authenticated %}
+  <div class="sidebar-user">
+    <div class="d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <div class="user-avatar">
+          {{ current_user.username[0]|upper }}
+        </div>
+        <div style="line-height:1.2;">
+          <div class="text-white fw-bold small text-truncate" style="max-width:115px;">{{ current_user.username }}</div>
+          <span class="badge rounded-pill {% if current_user.role=='admin' %}bg-primary{% else %}bg-secondary{% endif %}" style="font-size:0.65rem;">
+            {{ current_user.role|upper }}
+          </span>
+        </div>
       </div>
-      <a href="{{ url_for('logout') }}" class="nav-link text-danger" style="padding:.4rem .2rem;">
-        <i class="bi bi-box-arrow-right"></i> Logout
+      <a href="{{ url_for('logout') }}" class="btn-icon" title="Log out" style="background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.1); color:#f87171;">
+        <i class="bi bi-box-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+  {% endif %}
+</aside>
+
+<!-- ── Main Application Shell ── -->
+<div class="app-wrapper">
+  <!-- Top Bar -->
+  <header class="top-navbar no-print">
+    <div class="d-flex align-items-center gap-3">
+      <button class="btn btn-icon d-lg-none" id="sidebarToggle" type="button">
+        <i class="bi bi-list fs-5"></i>
+      </button>
+
+      <!-- Live Clock & Date Badge -->
+      <div class="d-none d-md-flex align-items-center gap-2 px-3 py-1 rounded-pill" style="background:var(--border-color); font-size:0.84rem; font-weight:600; color:var(--text-muted);">
+        <i class="bi bi-calendar3 text-primary"></i>
+        <span id="liveDateStr">{{ now.strftime('%a, %d %b %Y') }}</span>
+        <span class="mx-1">•</span>
+        <i class="bi bi-clock text-primary"></i>
+        <span id="liveTimeStr">{{ now.strftime('%I:%M %p') }}</span>
+      </div>
+    </div>
+
+    <!-- Right Header Actions -->
+    <div class="d-flex align-items-center gap-2">
+      <!-- Quick Add Button -->
+      <a href="{{ url_for('add') }}" class="btn btn-gradient-primary d-none d-sm-inline-flex align-items-center gap-2">
+        <i class="bi bi-plus-lg"></i>
+        <span>Add Medicine</span>
+      </a>
+
+      <!-- Quick Search Link -->
+      <a href="{{ url_for('search') }}" class="btn btn-icon" title="Search Medicines">
+        <i class="bi bi-search"></i>
+      </a>
+
+      <!-- Notifications Dropdown -->
+      <div class="dropdown">
+        <button class="btn btn-icon position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Alerts Notifications">
+          <i class="bi bi-bell"></i>
+          {% if g_alert_count > 0 %}
+          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.65rem;">
+            {{ g_alert_count }}
+          </span>
+          {% endif %}
+        </button>
+        <div class="dropdown-menu dropdown-menu-end shadow-lg p-0 mt-2" style="width: 320px; border-radius:14px; border:1px solid var(--border-color); overflow:hidden;">
+          <div class="p-3 bg-primary text-white d-flex justify-content-between align-items-center">
+            <span class="fw-bold"><i class="bi bi-bell-fill me-1"></i> Stock &amp; Expiry Alerts</span>
+            <span class="badge bg-light text-primary rounded-pill">{{ g_alert_count }}</span>
+          </div>
+          <div class="p-2" style="max-height: 280px; overflow-y: auto;">
+            {% if g_expired %}
+              <div class="text-xs fw-bold text-danger text-uppercase px-2 pt-1 mb-1">Expired ({{ g_expired|length }})</div>
+              {% for m in g_expired[:3] %}
+              <a href="{{ url_for('alerts') }}" class="dropdown-item py-2 px-2 rounded d-flex align-items-center justify-content-between">
+                <span class="text-truncate fw-medium" style="max-width:180px;">{{ m.medicine_name }}</span>
+                <span class="badge bg-danger">{{ m.days_left|abs }}d ago</span>
+              </a>
+              {% endfor %}
+            {% endif %}
+
+            {% if g_expiring %}
+              <div class="text-xs fw-bold text-warning text-uppercase px-2 pt-2 mb-1">Expiring Soon ({{ g_expiring|length }})</div>
+              {% for m in g_expiring[:3] %}
+              <a href="{{ url_for('alerts') }}" class="dropdown-item py-2 px-2 rounded d-flex align-items-center justify-content-between">
+                <span class="text-truncate fw-medium" style="max-width:180px;">{{ m.medicine_name }}</span>
+                <span class="badge bg-warning text-dark">{{ m.days_left }}d left</span>
+              </a>
+              {% endfor %}
+            {% endif %}
+
+            {% if g_low %}
+              <div class="text-xs fw-bold text-warning text-uppercase px-2 pt-2 mb-1">Low Stock ({{ g_low|length }})</div>
+              {% for m in g_low[:3] %}
+              <a href="{{ url_for('alerts') }}" class="dropdown-item py-2 px-2 rounded d-flex align-items-center justify-content-between">
+                <span class="text-truncate fw-medium" style="max-width:180px;">{{ m.medicine_name }}</span>
+                <span class="badge bg-warning text-dark">{{ m.quantity }} units</span>
+              </a>
+              {% endfor %}
+            {% endif %}
+
+            {% if not g_expired and not g_expiring and not g_low %}
+            <div class="text-center py-4 text-muted">
+              <i class="bi bi-shield-check text-success fs-3 d-block mb-1"></i>
+              <span class="small">All medicines are healthy and in stock!</span>
+            </div>
+            {% endif %}
+          </div>
+          <div class="p-2 border-top bg-light text-center">
+            <a href="{{ url_for('alerts') }}" class="small fw-bold text-primary text-decoration-none">View All Alerts &rarr;</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Theme Switch Toggle -->
+      <button class="btn btn-icon" id="themeToggleBtn" type="button" title="Toggle Light/Dark Theme">
+        <i class="bi bi-moon-stars" id="themeIcon"></i>
+      </button>
+
+      <!-- CSV Export Quick Button -->
+      <a href="{{ url_for('export_csv') }}" class="btn btn-icon d-none d-md-inline-flex" title="Download CSV Backup">
+        <i class="bi bi-download"></i>
+      </a>
+
+      <!-- Direct Header Logout Button -->
+      {% if current_user.is_authenticated %}
+      <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 ms-1" title="Log Out">
+        <i class="bi bi-box-arrow-right"></i>
+        <span class="d-none d-sm-inline">Logout</span>
       </a>
       {% endif %}
     </div>
-  </nav>
-</div>
+  </header>
 
-<!-- Main content -->
-<div class="main">
-  {% with msgs = get_flashed_messages(with_categories=true) %}
-    {% for cat, msg in msgs %}
-      <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
-        {{ msg }}
+  <!-- Main Body Content Area -->
+  <main class="main-content">
+    <!-- Flash Messages with Toasts / Alerts -->
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        {% for cat, msg in msgs %}
+          <div class="alert alert-{{ cat }} alert-dismissible fade show card-modern p-3 mb-4 d-flex align-items-center gap-3" role="alert">
+            {% if cat == 'success' %}
+              <i class="bi bi-check-circle-fill text-success fs-4"></i>
+            {% elif cat == 'danger' %}
+              <i class="bi bi-exclamation-octagon-fill text-danger fs-4"></i>
+            {% elif cat == 'warning' %}
+              <i class="bi bi-exclamation-triangle-fill text-warning fs-4"></i>
+            {% else %}
+              <i class="bi bi-info-circle-fill text-info fs-4"></i>
+            {% endif %}
+            <div class="flex-grow-1 fw-medium">{{ msg }}</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- ── Interactive Global Alert Banners ── -->
+    {% if g_expired %}
+    <div class="banner-alert banner-expired alert-dismissible fade show" role="alert">
+      <div class="stat-icon-wrapper" style="background:#ffe4e6; color:#e11d48;">
+        <i class="bi bi-x-octagon-fill"></i>
+      </div>
+      <div class="flex-grow-1">
+        <div class="fw-bold text-danger fs-6">Critical Alert: {{ g_expired|length }} Expired Medicine(s) Found!</div>
+        <div class="small text-muted mt-1">
+          Items require immediate quarantine and disposal to comply with medical safety regulations:
+          <span class="fw-semibold text-danger">
+            {% for m in g_expired[:4] %}{{ m.medicine_name }}{% if not loop.last %}, {% endif %}{% endfor %}
+            {% if g_expired|length > 4 %} +{{ g_expired|length - 4 }} more{% endif %}
+          </span>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <a href="{{ url_for('alerts') }}" class="btn btn-sm btn-danger fw-semibold px-3 rounded-pill">Quarantine List</a>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
       </div>
-    {% endfor %}
-  {% endwith %}
-
-  <!-- ── Global Expiry & Stock Alert Banners ── -->
-  {% if g_expired %}
-  <div class="alert global-alert-bar alert-expired-bar alert-dismissible fade show d-flex align-items-start gap-3 mb-2" role="alert">
-    <i class="bi bi-x-circle-fill text-danger fs-4 mt-1 flex-shrink-0"></i>
-    <div>
-      <strong class="text-danger">⚠ {{ g_expired|length }} medicine(s) EXPIRED!</strong>
-      <div class="med-badge-list mt-1">
-        {% for m in g_expired %}
-          <span>{{ m.medicine_name }} <small class="text-muted">({{ m.expiry_date }})</small></span>
-        {% endfor %}
-      </div>
-      <a href="{{ url_for('alerts') }}" class="btn btn-sm btn-danger mt-2">View Expired Medicines</a>
     </div>
-    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
-  </div>
-  {% endif %}
+    {% endif %}
 
-  {% if g_expiring %}
-  <div class="alert global-alert-bar alert-expiring-bar alert-dismissible fade show d-flex align-items-start gap-3 mb-2" role="alert">
-    <i class="bi bi-clock-history text-warning fs-4 mt-1 flex-shrink-0"></i>
-    <div>
-      <strong class="text-warning">⚠ {{ g_expiring|length }} medicine(s) expiring within 30 days!</strong>
-      <div class="med-badge-list mt-1">
-        {% for m in g_expiring %}
-          <span>{{ m.medicine_name }} <small class="text-muted">({{ m.days_left }}d left)</small></span>
-        {% endfor %}
+    {% if g_expiring %}
+    <div class="banner-alert banner-expiring alert-dismissible fade show" role="alert">
+      <div class="stat-icon-wrapper" style="background:#fef3c7; color:#d97706;">
+        <i class="bi bi-hourglass-split"></i>
       </div>
-      <a href="{{ url_for('alerts') }}" class="btn btn-sm btn-warning mt-2">View Expiring Medicines</a>
-    </div>
-    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
-  </div>
-  {% endif %}
-
-  {% if g_low %}
-  <div class="alert global-alert-bar alert-low-bar alert-dismissible fade show d-flex align-items-start gap-3 mb-2" role="alert">
-    <i class="bi bi-box-seam text-warning fs-4 mt-1 flex-shrink-0"></i>
-    <div>
-      <strong style="color:#856404;">⚠ {{ g_low|length }} medicine(s) running low on stock!</strong>
-      <div class="med-badge-list mt-1">
-        {% for m in g_low %}
-          <span>{{ m.medicine_name }} <small class="text-muted">({{ m.quantity }} left)</small></span>
-        {% endfor %}
+      <div class="flex-grow-1">
+        <div class="fw-bold text-warning-emphasis fs-6">Attention: {{ g_expiring|length }} Medicine(s) Expiring within 30 Days</div>
+        <div class="small text-muted mt-1">
+          Prioritize dispensing before expiry:
+          <span class="fw-semibold">
+            {% for m in g_expiring[:4] %}{{ m.medicine_name }} ({{ m.days_left }}d left){% if not loop.last %}, {% endif %}{% endfor %}
+          </span>
+        </div>
       </div>
-      <a href="{{ url_for('alerts') }}" class="btn btn-sm btn-warning mt-2">View Low Stock</a>
+      <div class="d-flex align-items-center gap-2">
+        <a href="{{ url_for('alerts') }}" class="btn btn-sm btn-warning fw-semibold px-3 rounded-pill text-dark">Review Batches</a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
     </div>
-    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
-  </div>
-  {% endif %}
-  <!-- ── end banners ── -->
+    {% endif %}
 
-  {% block content %}{% endblock %}
+    {% if g_low %}
+    <div class="banner-alert banner-low alert-dismissible fade show" role="alert">
+      <div class="stat-icon-wrapper" style="background:#ffedd5; color:#c2410c;">
+        <i class="bi bi-box-seam-fill"></i>
+      </div>
+      <div class="flex-grow-1">
+        <div class="fw-bold text-orange fs-6" style="color:#c2410c;">Restock Notice: {{ g_low|length }} Medicine(s) Below Minimum Threshold (&le; 10 Units)</div>
+        <div class="small text-muted mt-1">
+          Stock depletion warning for:
+          <span class="fw-semibold">
+            {% for m in g_low[:4] %}{{ m.medicine_name }} ({{ m.quantity }} left){% if not loop.last %}, {% endif %}{% endfor %}
+          </span>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <a href="{{ url_for('alerts') }}" class="btn btn-sm btn-outline-warning fw-semibold px-3 rounded-pill text-dark">Check Stock</a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="mt-auto py-3 px-4 text-center text-muted small border-top no-print" style="background:var(--bg-card); border-color:var(--border-color)!important;">
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
+      <div>&copy; {{ now.year }} <strong>MediAlert Pro</strong> — Medicine Expiry &amp; Stock Alert System</div>
+      <div class="d-flex align-items-center gap-3">
+        <span><i class="bi bi-shield-check text-success me-1"></i> Multi-User Isolation</span>
+        <span><i class="bi bi-activity text-primary me-1"></i> Real-Time Monitoring</span>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- ── CSV Import Modal ── -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content card-modern" style="border-radius:18px;">
+      <div class="modal-header border-bottom py-3">
+        <h5 class="modal-title fw-bold" id="importModalLabel">
+          <i class="bi bi-file-earmark-arrow-up-fill text-primary me-2"></i>Import Medicines from CSV
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('import_csv') }}" method="post" enctype="multipart/form-data">
+        <div class="modal-body p-4">
+          <p class="text-muted small mb-3">
+            Upload a CSV containing your medicine batch inventory. The system will automatically add new items or update matching Medicine IDs.
+          </p>
+          <div class="p-3 rounded-3 mb-3" style="background:rgba(2, 132, 199, 0.06); border:1px dashed var(--primary-accent);">
+            <div class="fw-semibold small text-primary mb-1">Expected CSV Headers:</div>
+            <code class="text-xs" style="color:var(--text-main);">medicine_id, medicine_name, batch_number, quantity, expiry_date, price</code>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Select CSV File</label>
+            <input class="form-control" type="file" name="csv_file" accept=".csv" required>
+          </div>
+        </div>
+        <div class="modal-footer border-top p-3">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-gradient-primary">Upload &amp; Import</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // ── Theme Switcher with localStorage Memory ──
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const themeIcon = document.getElementById('themeIcon');
+  const htmlTag = document.documentElement;
+
+  function applyTheme(theme) {
+    htmlTag.setAttribute('data-bs-theme', theme);
+    localStorage.setItem('medialert_theme', theme);
+    if (theme === 'dark') {
+      themeIcon.className = 'bi bi-sun-fill text-warning';
+    } else {
+      themeIcon.className = 'bi bi-moon-stars';
+    }
+  }
+
+  const savedTheme = localStorage.getItem('medialert_theme') || 'light';
+  applyTheme(savedTheme);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const current = htmlTag.getAttribute('data-bs-theme');
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    });
+  }
+
+  // ── Mobile Sidebar Toggle ──
+  const sidebar = document.getElementById('sidebar');
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  if (sidebarToggle && sidebar) {
+    sidebarToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('show');
+    });
+  }
+
+  // ── Live Clock Tick ──
+  function updateLiveClock() {
+    const el = document.getElementById('liveTimeStr');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  setInterval(updateLiveClock, 1000);
+</script>
+
+{% block scripts %}{% endblock %}
 </body>
 </html>

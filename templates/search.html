@@ -1,57 +1,101 @@
 {% extends "base.html" %}
+{% block title %}Search Catalog — MediAlert Pro{% endblock %}
+
 {% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('index') }}" class="btn btn-icon" title="Back to Dashboard">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h2 class="fw-bold mb-1" style="letter-spacing:-0.03em;">Search Medicine Catalog</h2>
+    <p class="text-muted small mb-0">Locate pharmaceutical records by medicine name, brand, or Medicine ID code.</p>
+  </div>
+</div>
 
-<div class="page-title"><i class="bi bi-search me-2"></i>Search Medicine</div>
-
-<form action="{{ url_for('search') }}" method="get" class="mb-4 d-flex gap-2" style="max-width:480px">
-  <input name="q" class="form-control form-control-lg" placeholder="Enter medicine name or ID..." value="{{ q }}"/>
-  <button class="btn btn-primary px-4 btn-lg"><i class="bi bi-search"></i></button>
-</form>
+<div class="card-modern p-4 mb-4">
+  <form action="{{ url_for('search') }}" method="get">
+    <div class="input-group input-group-lg">
+      <span class="input-group-text bg-white border-end-0 text-muted">
+        <i class="bi bi-search text-primary fs-5"></i>
+      </span>
+      <input name="q" class="form-control border-start-0" placeholder="Type medicine name (e.g. Paracetamol) or ID (e.g. MED101)..." value="{{ q }}" autofocus/>
+      <button class="btn btn-gradient-primary px-4 fw-bold" type="submit">Search Catalog</button>
+    </div>
+  </form>
+</div>
 
 {% if q %}
-  <p class="text-muted mb-3">
-    {% if meds %}{{ meds|length }} result(s) for <strong>"{{ q }}"</strong>
-    {% else %}No results found for <strong>"{{ q }}"</strong>{% endif %}
-  </p>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0 text-muted">
+      Search Results for <span class="text-primary">"{{ q }}"</span>:
+    </h5>
+    <span class="badge bg-secondary rounded-pill px-3 py-2">{{ meds|length }} Matches</span>
+  </div>
 
   {% if meds %}
-  <div class="card table-card">
+  <div class="card-modern">
     <div class="table-responsive">
-      <table class="table table-hover mb-0">
+      <table class="table-modern">
         <thead>
-          <tr><th>ID</th><th>Name</th><th>Batch</th><th>Qty</th><th>Expiry</th><th>Price</th><th>Supplier</th><th>Status</th><th>Actions</th></tr>
+          <tr>
+            <th>Medicine &amp; ID</th>
+            <th>Batch</th>
+            <th>Current Stock</th>
+            <th>Expiry Date</th>
+            <th>Unit Price</th>
+            <th>Batch Value</th>
+            <th>Supplier</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
         </thead>
         <tbody>
           {% for m in meds %}
           <tr>
-            <td class="fw-semibold">{{ m.medicine_id }}</td>
-            <td>{{ m.medicine_name }}</td>
-            <td class="text-muted small">{{ m.batch_number }}</td>
             <td>
-              {{ m.quantity }}
-              {% if m.low_stock %}<span class="badge bg-warning text-dark ms-1">Low</span>{% endif %}
+              <div class="fw-bold text-dark">{{ m.medicine_name }}</div>
+              <code class="font-monospace text-muted">{{ m.medicine_id }}</code>
+            </td>
+            <td><span class="badge bg-light text-muted border font-monospace">{{ m.batch_number }}</span></td>
+            <td>
+              <span class="fw-bold {% if m.low_stock %}text-danger{% endif %}">{{ m.quantity }} units</span>
+              {% if m.low_stock %}<span class="badge status-low ms-1">Low</span>{% endif %}
             </td>
             <td>
-              {{ m.expiry_date }}
+              <div>{{ m.expiry_date }}</div>
               {% if m.status == "expired" %}
-                <span class="badge bg-danger ms-1">Expired</span>
+                <span class="badge bg-danger rounded-pill">{{ m.days_left|abs }}d ago</span>
               {% elif m.status == "expiring" %}
-                <span class="badge bg-warning text-dark ms-1">{{ m.days_left }}d</span>
+                <span class="badge bg-warning text-dark rounded-pill">{{ m.days_left }}d left</span>
               {% endif %}
             </td>
-            <td>Rs. {{ m.price }}</td>
-            <td class="small text-muted">{{ m.supplier_name }}</td>
+            <td>₹{{ "%.2f"|format(m.price|float) }}</td>
+            <td class="fw-semibold text-success">₹{{ "{:,.2f}".format(m.stock_value|float) }}</td>
+            <td class="small">{{ m.supplier_name }}</td>
             <td>
-              {% if m.status == "expired" %}<span class="badge bg-danger">Expired</span>
-              {% elif m.status == "expiring" %}<span class="badge bg-warning text-dark">Expiring</span>
-              {% else %}<span class="badge bg-success">Good</span>{% endif %}
+              {% if m.status == "expired" %}
+                <span class="status-pill status-expired">Expired</span>
+              {% elif m.status == "expiring" %}
+                <span class="status-pill status-expiring">Expiring Soon</span>
+              {% elif m.low_stock %}
+                <span class="status-pill status-low">Low Stock</span>
+              {% else %}
+                <span class="status-pill status-ok">Good</span>
+              {% endif %}
             </td>
-            <td>
-              <a href="{{ url_for('edit', med_id=m.medicine_id) }}" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>
-              <form method="post" action="{{ url_for('delete', med_id=m.medicine_id) }}" class="d-inline"
-                    onsubmit="return confirm('Delete {{ m.medicine_name }}?')">
-                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-              </form>
+            <td class="text-end">
+              <div class="btn-group">
+                <a href="{{ url_for('dispense', med_id=m.medicine_id) }}" class="btn btn-sm btn-outline-success" title="Dispense">
+                  <i class="bi bi-capsule"></i>
+                </a>
+                <a href="{{ url_for('edit', med_id=m.medicine_id) }}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <form method="post" action="{{ url_for('delete', med_id=m.medicine_id) }}" class="d-inline"
+                      onsubmit="return confirm('Delete {{ m.medicine_name }}?')">
+                  <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash3"></i></button>
+                </form>
+              </div>
             </td>
           </tr>
           {% endfor %}
@@ -60,9 +104,13 @@
     </div>
   </div>
   {% else %}
-  <div class="alert alert-warning d-flex align-items-center gap-2">
-    <i class="bi bi-exclamation-triangle"></i>
-    No medicine found matching "{{ q }}". <a href="{{ url_for('add') }}" class="ms-2">Add it?</a>
+  <div class="card-modern p-5 text-center text-muted">
+    <i class="bi bi-search fs-1 d-block mb-3 text-warning"></i>
+    <h5>No Medicine Matched "{{ q }}"</h5>
+    <p class="small mb-3">Check spelling or add a new batch entry for this medicine in your inventory.</p>
+    <a href="{{ url_for('add') }}" class="btn btn-gradient-primary">
+      <i class="bi bi-plus-lg me-1"></i>Add Medicine to Catalog
+    </a>
   </div>
   {% endif %}
 {% endif %}

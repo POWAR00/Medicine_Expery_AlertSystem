@@ -1,65 +1,151 @@
 {% extends "base.html" %}
+{% block title %}Add New Medicine — MediAlert Pro{% endblock %}
+
 {% block content %}
-
-<div class="page-title"><i class="bi bi-plus-circle me-2"></i>Add New Medicine</div>
-
-<div class="card border-0 shadow-sm" style="border-radius:1rem; max-width:720px">
-  <div class="card-body p-4">
-    <form method="post">
-      <h6 class="text-uppercase text-muted fw-semibold mb-3" style="font-size:.75rem; letter-spacing:.08em">
-        Medicine Details
-      </h6>
-      <div class="row g-3 mb-4">
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Medicine ID <span class="text-danger">*</span></label>
-          <input name="medicine_id" class="form-control" placeholder="e.g. MED001" required/>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Medicine Name <span class="text-danger">*</span></label>
-          <input name="medicine_name" class="form-control" placeholder="e.g. Paracetamol 500mg" required/>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Batch Number <span class="text-danger">*</span></label>
-          <input name="batch_number" class="form-control" placeholder="e.g. BT2024-01" required/>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">Quantity <span class="text-danger">*</span></label>
-          <input name="quantity" type="number" min="1" class="form-control" placeholder="100" required/>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">Price (Rs.) <span class="text-danger">*</span></label>
-          <input name="price" type="number" step="0.01" min="0.01" class="form-control" placeholder="25.00" required/>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Expiry Date <span class="text-danger">*</span></label>
-          <input name="expiry_date" type="date" class="form-control" required/>
-        </div>
-      </div>
-
-      <hr/>
-      <h6 class="text-uppercase text-muted fw-semibold mb-3" style="font-size:.75rem; letter-spacing:.08em">
-        Supplier Details <span class="text-muted fw-normal">(optional)</span>
-      </h6>
-      <div class="row g-3 mb-4">
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Supplier Name</label>
-          <input name="supplier_name" class="form-control" placeholder="ABC Pharma Ltd."/>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Contact Number</label>
-          <input name="contact_number" class="form-control" placeholder="9876543210"/>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Email</label>
-          <input name="email" type="email" class="form-control" placeholder="supplier@email.com"/>
-        </div>
-      </div>
-
-      <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i>Add Medicine</button>
-        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancel</a>
-      </div>
-    </form>
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('index') }}" class="btn btn-icon" title="Back to Dashboard">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h2 class="fw-bold mb-1" style="letter-spacing:-0.03em;">Add New Medicine Batch</h2>
+    <p class="text-muted small mb-0">Record a new pharmaceutical product, lot details, and supplier contacts.</p>
   </div>
 </div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-9 col-xl-8">
+    <div class="card-modern p-4 p-md-5">
+      <form method="post" id="addMedForm">
+        <!-- Section: Primary Medicine Details -->
+        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+          <i class="bi bi-capsule-pill text-primary fs-5"></i>
+          <h5 class="fw-bold mb-0">Medicine &amp; Batch Information</h5>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Medicine ID <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+              <input name="medicine_id" class="form-control" placeholder="e.g. MED107" required autofocus/>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Medicine Name &amp; Dosage <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-prescription"></i></span>
+              <input name="medicine_name" class="form-control" placeholder="e.g. Ibuprofen 400mg" required/>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Batch / Lot Number <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-tag"></i></span>
+              <input name="batch_number" class="form-control" placeholder="e.g. IBU-2026-X1" required/>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Quantity (Units) <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-boxes"></i></span>
+              <input name="quantity" id="inputQty" type="number" min="1" class="form-control" placeholder="100" required oninput="calcBatchVal()"/>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Price / Unit (₹) <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text">₹</span>
+              <input name="price" id="inputPrice" type="number" step="0.01" min="0.01" class="form-control" placeholder="45.00" required oninput="calcBatchVal()"/>
+            </div>
+          </div>
+
+          <!-- Calculated Total Value Preview Banner -->
+          <div class="col-12">
+            <div class="p-3 rounded-3 d-flex justify-content-between align-items-center" style="background:rgba(2, 132, 199, 0.06); border:1px solid rgba(2, 132, 199, 0.2);">
+              <span class="small fw-semibold text-muted">Estimated Total Batch Worth:</span>
+              <span class="fw-bold fs-5 text-primary" id="batchValDisplay">₹0.00</span>
+            </div>
+          </div>
+
+          <!-- Expiry Date & Quick Helper Buttons -->
+          <div class="col-md-12">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Expiry Date <span class="text-danger">*</span></label>
+            <div class="input-group mb-2">
+              <span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
+              <input name="expiry_date" id="inputExpiry" type="date" class="form-control" required/>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="small text-muted">Quick Presets:</span>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" style="font-size:0.75rem;" onclick="setQuickExpiry(6)">+6 Months</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" style="font-size:0.75rem;" onclick="setQuickExpiry(12)">+1 Year</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" style="font-size:0.75rem;" onclick="setQuickExpiry(24)">+2 Years</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Supplier Details -->
+        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom pt-3">
+          <i class="bi bi-truck text-success fs-5"></i>
+          <h5 class="fw-bold mb-0">Supplier &amp; Distributor Details <span class="text-muted fw-normal small">(Optional)</span></h5>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Supplier / Distributor Name</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-building"></i></span>
+              <input name="supplier_name" class="form-control" placeholder="e.g. Apex Health Ltd."/>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Contact Mobile / Phone</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+              <input name="contact_number" class="form-control" placeholder="+91 9822012345"/>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <label class="form-label fw-semibold small text-muted text-uppercase">Email Address</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+              <input name="email" type="email" class="form-control" placeholder="orders@supplier.com"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="d-flex align-items-center gap-2 pt-3 border-top">
+          <button type="submit" class="btn btn-gradient-primary px-4 fw-bold">
+            <i class="bi bi-check2-circle me-1"></i>Save Medicine Batch
+          </button>
+          <a href="{{ url_for('index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function calcBatchVal() {
+    const q = parseFloat(document.getElementById('inputQty').value) || 0;
+    const p = parseFloat(document.getElementById('inputPrice').value) || 0;
+    const total = q * p;
+    document.getElementById('batchValDisplay').textContent = '₹' + total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function setQuickExpiry(months) {
+    const d = new Date();
+    d.setMonth(d.getMonth() + months);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    document.getElementById('inputExpiry').value = `${yyyy}-${mm}-${dd}`;
+  }
+</script>
 {% endblock %}

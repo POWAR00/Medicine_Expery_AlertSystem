@@ -1,73 +1,118 @@
 {% extends "base.html" %}
+{% block title %}Inventory &amp; Audit Report — MediAlert Pro{% endblock %}
+
 {% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1" style="letter-spacing:-0.03em;">
+      <i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>Comprehensive Audit &amp; Inventory Report
+    </h2>
+    <p class="text-muted small mb-0">Generated on <strong>{{ today.strftime('%A, %d %B %Y') }}</strong> for Pharmacist: <strong>{{ current_user.username }}</strong></p>
+  </div>
+  <div class="d-flex align-items-center gap-2 no-print">
+    <button onclick="window.print()" class="btn btn-outline-primary d-inline-flex align-items-center gap-2">
+      <i class="bi bi-printer"></i>
+      <span>Print / Save PDF</span>
+    </button>
+    <a href="{{ url_for('export_csv') }}" class="btn btn-gradient-primary d-inline-flex align-items-center gap-2">
+      <i class="bi bi-download"></i>
+      <span>Download CSV</span>
+    </a>
+  </div>
+</div>
 
-<div class="page-title"><i class="bi bi-bar-chart me-2"></i>Inventory Report</div>
-<p class="text-muted mb-4">Generated on {{ today.strftime('%d %B %Y') }}</p>
-
-<!-- Summary Cards -->
+<!-- Executive Summary Cards -->
 <div class="row g-3 mb-4">
-  <div class="col-6 col-xl-2">
-    <div class="card stat-card p-3 text-center" style="border-top:4px solid #1a3c5e">
-      <div class="fs-2 fw-bold text-primary">{{ stats.total }}</div>
-      <div class="text-muted small">Total</div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card-modern p-3 text-center border-top border-4 border-primary">
+      <div class="small text-muted fw-semibold text-uppercase">Total Catalog</div>
+      <div class="fs-2 fw-bold text-primary my-1">{{ stats.total }}</div>
+      <div class="text-xs text-muted">Active items</div>
     </div>
   </div>
-  <div class="col-6 col-xl-2">
-    <div class="card stat-card p-3 text-center" style="border-top:4px solid #dc3545">
-      <div class="fs-2 fw-bold text-danger">{{ stats.expired }}</div>
-      <div class="text-muted small">Expired</div>
+
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card-modern p-3 text-center border-top border-4 border-danger">
+      <div class="small text-muted fw-semibold text-uppercase">Expired</div>
+      <div class="fs-2 fw-bold text-danger my-1">{{ stats.expired }}</div>
+      <div class="text-xs text-danger">Quarantine req.</div>
     </div>
   </div>
-  <div class="col-6 col-xl-2">
-    <div class="card stat-card p-3 text-center" style="border-top:4px solid #fd7e14">
-      <div class="fs-2 fw-bold text-warning">{{ stats.expiring }}</div>
-      <div class="text-muted small">Exp. Soon</div>
+
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card-modern p-3 text-center border-top border-4 border-warning">
+      <div class="small text-muted fw-semibold text-uppercase">Exp. Soon</div>
+      <div class="fs-2 fw-bold text-warning my-1">{{ stats.expiring }}</div>
+      <div class="text-xs text-muted">&le; 30 days left</div>
     </div>
   </div>
-  <div class="col-6 col-xl-2">
-    <div class="card stat-card p-3 text-center" style="border-top:4px solid #ffc107">
-      <div class="fs-2 fw-bold" style="color:#ffc107">{{ stats.low }}</div>
-      <div class="text-muted small">Low Stock</div>
+
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card-modern p-3 text-center border-top border-4" style="border-color:#ea580c!important;">
+      <div class="small text-muted fw-semibold text-uppercase">Low Stock</div>
+      <div class="fs-2 fw-bold my-1" style="color:#ea580c;">{{ stats.low }}</div>
+      <div class="text-xs text-muted">&le; 10 units</div>
     </div>
   </div>
-  <div class="col-12 col-xl-4">
-    <div class="card stat-card p-3 text-center" style="border-top:4px solid #198754">
-      <div class="fs-4 fw-bold text-success">Rs. {{ "%.2f"|format(stats.value) }}</div>
-      <div class="text-muted small">Total Inventory Value</div>
+
+  <div class="col-12 col-md-8 col-xl-4">
+    <div class="card-modern p-3 text-center border-top border-4 border-success">
+      <div class="small text-muted fw-semibold text-uppercase">Total Inventory Valuation</div>
+      <div class="fs-2 fw-bold text-success my-1">₹{{ "{:,.2f}".format(stats.value) }}</div>
+      <div class="text-xs text-muted">Current active inventory asset value</div>
     </div>
   </div>
 </div>
 
-<!-- Full Inventory -->
-<div class="card table-card mb-4">
-  <div class="card-header bg-white fw-semibold py-3">
-    <i class="bi bi-table me-2"></i>Full Inventory
+<!-- 1. Full Inventory Breakdown Table -->
+<div class="card-modern mb-4">
+  <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+    <span class="fw-bold text-dark"><i class="bi bi-table me-2 text-primary"></i>Active Medicine Inventory Audit</span>
+    <span class="badge bg-secondary rounded-pill">{{ meds|length }} Records</span>
   </div>
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
+    <table class="table-modern">
       <thead>
-        <tr><th>ID</th><th>Name</th><th>Batch</th><th>Qty</th><th>Expiry</th><th>Price</th><th>Stock Value</th><th>Status</th></tr>
+        <tr>
+          <th>Medicine ID</th>
+          <th>Medicine Name</th>
+          <th>Batch Number</th>
+          <th>Stock Units</th>
+          <th>Expiry Date</th>
+          <th>Unit Price</th>
+          <th>Batch Worth</th>
+          <th>Inventory Status</th>
+        </tr>
       </thead>
       <tbody>
         {% for m in meds %}
         <tr>
-          <td class="fw-semibold">{{ m.medicine_id }}</td>
-          <td>{{ m.medicine_name }}</td>
-          <td class="text-muted small">{{ m.batch_number }}</td>
+          <td><code class="font-monospace text-primary fw-bold">{{ m.medicine_id }}</code></td>
+          <td class="fw-bold">{{ m.medicine_name }}</td>
+          <td><span class="badge bg-light text-muted border font-monospace">{{ m.batch_number }}</span></td>
           <td>
-            {{ m.quantity }}
-            {% if m.low_stock %}<span class="badge bg-warning text-dark ms-1">Low</span>{% endif %}
+            <span class="fw-bold {% if m.low_stock %}text-danger{% endif %}">{{ m.quantity }}</span>
+            {% if m.low_stock %}<span class="badge status-low ms-1">Low</span>{% endif %}
           </td>
-          <td>{{ m.expiry_date }}</td>
-          <td>Rs. {{ m.price }}</td>
-          <td class="fw-semibold">Rs. {{ "%.2f"|format(float(m.price) * int(m.quantity)) }}</td>
+          <td>
+            {{ m.expiry_date }}
+            {% if m.status == 'expired' %}
+              <span class="badge bg-danger rounded-pill ms-1">Expired</span>
+            {% elif m.status == 'expiring' %}
+              <span class="badge bg-warning text-dark rounded-pill ms-1">{{ m.days_left }}d left</span>
+            {% endif %}
+          </td>
+          <td>₹{{ "%.2f"|format(m.price|float) }}</td>
+          <td class="fw-bold text-success">₹{{ "{:,.2f}".format(m.stock_value|float) }}</td>
           <td>
             {% if m.status == "expired" %}
-              <span class="badge bg-danger">Expired</span>
+              <span class="status-pill status-expired">Expired</span>
             {% elif m.status == "expiring" %}
-              <span class="badge bg-warning text-dark">Expiring</span>
+              <span class="status-pill status-expiring">Expiring Soon</span>
+            {% elif m.low_stock %}
+              <span class="status-pill status-low">Low Stock</span>
             {% else %}
-              <span class="badge bg-success">Good</span>
+              <span class="status-pill status-ok">Good Stock</span>
             {% endif %}
           </td>
         </tr>
@@ -77,74 +122,104 @@
   </div>
 </div>
 
-<!-- Restock Log -->
-<div class="card table-card mb-4">
-  <div class="card-header bg-white fw-semibold py-3">
-    <i class="bi bi-clock-history me-2"></i>Restock Log
+<!-- 2. Restock Log Table -->
+<div class="card-modern mb-4">
+  <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+    <span class="fw-bold text-dark"><i class="bi bi-clock-history me-2 text-primary"></i>Restock &amp; Quantity Modification Log</span>
+    <span class="badge bg-secondary rounded-pill">{{ log|length }} Entries</span>
   </div>
   {% if log %}
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
+    <table class="table-modern">
       <thead>
-        <tr><th>Timestamp</th><th>Med ID</th><th>Name</th><th>Old Qty</th><th>New Qty</th><th>Change</th><th>By</th></tr>
+        <tr>
+          <th>Timestamp</th>
+          <th>Medicine ID</th>
+          <th>Medicine Name</th>
+          <th>Old Qty</th>
+          <th>New Qty</th>
+          <th>Net Change</th>
+          <th>Updated By</th>
+        </tr>
       </thead>
       <tbody>
-        {% for e in log %}
+        {% for e in log|reverse %}
         {% set diff = e.new_quantity|int - e.old_quantity|int %}
         <tr>
-          <td class="small text-muted">{{ e.timestamp }}</td>
-          <td class="fw-semibold">{{ e.medicine_id }}</td>
-          <td>{{ e.medicine_name }}</td>
+          <td class="font-monospace small text-muted">{{ e.timestamp }}</td>
+          <td><code class="font-monospace">{{ e.medicine_id }}</code></td>
+          <td class="fw-semibold">{{ e.medicine_name }}</td>
           <td>{{ e.old_quantity }}</td>
-          <td>{{ e.new_quantity }}</td>
+          <td class="fw-bold">{{ e.new_quantity }}</td>
           <td>
             {% if diff >= 0 %}
-              <span class="badge bg-success">+{{ diff }}</span>
+              <span class="badge bg-success rounded-pill">+{{ diff }}</span>
             {% else %}
-              <span class="badge bg-danger">{{ diff }}</span>
+              <span class="badge bg-danger rounded-pill">{{ diff }}</span>
             {% endif %}
           </td>
-          <td class="small">{{ e.changed_by }}</td>
+          <td><span class="badge bg-light text-dark border">{{ e.changed_by }}</span></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% else %}
-  <div class="p-4 text-muted text-center">No restock history yet.</div>
+  <div class="p-4 text-center text-muted">No historical restock modifications recorded yet.</div>
   {% endif %}
 </div>
 
-<!-- Usage / Dispense Log -->
-<div class="card table-card">
-  <div class="card-header bg-white fw-semibold py-3">
-    <i class="bi bi-capsule me-2"></i>Dispense / Usage Log
+<!-- 3. Dispense History Table -->
+<div class="card-modern mb-4">
+  <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+    <span class="fw-bold text-dark"><i class="bi bi-capsule me-2 text-primary"></i>Recent Patient Dispense Transactions</span>
+    <span class="badge bg-secondary rounded-pill">{{ ulog|length }} Records</span>
   </div>
   {% if ulog %}
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
+    <table class="table-modern">
       <thead>
-        <tr><th>Timestamp</th><th>Med ID</th><th>Name</th><th>Used</th><th>Before</th><th>After</th><th>By</th><th>Note</th></tr>
+        <tr>
+          <th>Timestamp</th>
+          <th>Medicine ID</th>
+          <th>Medicine Name</th>
+          <th>Units Dispensed</th>
+          <th>Prior Stock</th>
+          <th>Remaining</th>
+          <th>Pharmacist</th>
+          <th>Prescription Reference</th>
+        </tr>
       </thead>
       <tbody>
         {% for e in ulog|reverse %}
-        <tr {% if e.qty_after|int <= 10 %}class="table-warning"{% endif %}>
-          <td class="small text-muted">{{ e.timestamp }}</td>
-          <td class="fw-semibold">{{ e.medicine_id }}</td>
-          <td>{{ e.medicine_name }}</td>
-          <td><span class="badge bg-danger">-{{ e.qty_used }}</span></td>
-          <td>{{ e.qty_before }}</td>
-          <td>{{ e.qty_after }}{% if e.qty_after|int <= 10 %} <span class="badge bg-warning text-dark">Low</span>{% endif %}</td>
-          <td class="small">{{ e.dispensed_by }}</td>
-          <td class="small text-muted">{{ e.note }}</td>
+        <tr>
+          <td class="font-monospace small text-muted">{{ e.timestamp }}</td>
+          <td><code class="font-monospace">{{ e.medicine_id }}</code></td>
+          <td class="fw-semibold">{{ e.medicine_name }}</td>
+          <td><span class="badge bg-danger rounded-pill">-{{ e.qty_used }} units</span></td>
+          <td class="text-muted">{{ e.qty_before }}</td>
+          <td class="fw-bold {% if e.qty_after|int <= 10 %}text-danger{% endif %}">{{ e.qty_after }}</td>
+          <td><span class="badge bg-light text-dark border">{{ e.dispensed_by }}</span></td>
+          <td class="small text-muted">{{ e.note or '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% else %}
-  <div class="p-4 text-muted text-center">No dispense history yet.</div>
+  <div class="p-4 text-center text-muted">No patient dispense transactions recorded yet.</div>
   {% endif %}
 </div>
 
+<!-- Official Sign-off block for Print -->
+<div class="card-modern p-4 mt-4 d-none d-print-block">
+  <div class="row pt-4 text-center">
+    <div class="col-6">
+      <div class="border-top pt-2 fw-semibold">Chief Pharmacist Signature</div>
+    </div>
+    <div class="col-6">
+      <div class="border-top pt-2 fw-semibold">Clinical Auditor / Stamp</div>
+    </div>
+  </div>
+</div>
 {% endblock %}

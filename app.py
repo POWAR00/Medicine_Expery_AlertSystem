@@ -1,9 +1,9 @@
 from flask import (Flask, render_template, request, redirect,
-                   url_for, flash, session)
+                   url_for, flash, session, Response)
 from flask_login import (LoginManager, UserMixin, login_user,
                          logout_user, login_required, current_user)
 from apscheduler.schedulers.background import BackgroundScheduler
-import csv, os, random, smtplib, atexit, threading
+import csv, os, secrets, smtplib, atexit, threading, io
 from datetime import datetime, date
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -11,8 +11,33 @@ from email.mime.multipart import MIMEMultipart
 # ─────────────────────────────────────────────
 # App Setup
 # ─────────────────────────────────────────────
+def _load_local_env():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if not os.path.exists(path):
+        return
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, val = line.split("=", 1)
+                os.environ.setdefault(key.strip(), val.strip())
+
+_load_local_env()
+
 app = Flask(__name__)
-app.secret_key = "med_alert_secret_2024"
+app.secret_key = os.environ.get("SECRET_KEY", "med_alert_dev_key_not_for_production")
+
+# Register Jinja helpers so templates never crash on type casting/math
+app.jinja_env.globals.update(
+    float=float,
+    int=int,
+    len=len,
+    round=round,
+    str=str,
+    max=max,
+    min=min,
+    today=date.today
+)
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -36,15 +61,36 @@ DATE_FORMAT = "%Y-%m-%d"
 TS_FORMAT   = "%Y-%m-%d %H:%M:%S"
 MIN_STOCK   = 10
 
+# Default starter catalog for rich initial visualization
+DEFAULT_INITIAL_MEDS = [
+    {"medicine_id": "MED101", "medicine_name": "Paracetamol 500mg", "batch_number": "PCM-2026-A1", "quantity": "8", "expiry_date": "2026-10-10", "price": "20.00"},
+    {"medicine_id": "MED102", "medicine_name": "Amoxicillin 250mg", "batch_number": "AMX-2026-B4", "quantity": "45", "expiry_date": "2026-11-05", "price": "65.50"},
+    {"medicine_id": "MED103", "medicine_name": "Cetirizine 10mg",   "batch_number": "CET-2026-C2", "quantity": "90", "expiry_date": "2027-08-15", "price": "18.00"},
+    {"medicine_id": "MED104", "medicine_name": "Azithromycin 500mg","batch_number": "AZI-2026-D9", "quantity": "5",  "expiry_date": "2027-04-20", "price": "115.00"},
+    {"medicine_id": "MED105", "medicine_name": "Metformin 500mg",   "batch_number": "MET-2026-E3", "quantity": "120","expiry_date": "2027-12-31", "price": "35.00"},
+    {"medicine_id": "MED106", "medicine_name": "Omeprazole 20mg",   "batch_number": "OMP-2026-F1", "quantity": "60", "expiry_date": "2026-11-12", "price": "42.00"},
+]
+DEFAULT_INITIAL_SUPS = [
+    {"medicine_id": "MED101", "supplier_name": "Apex Healthcare Ltd",   "contact_number": "+91 9822012345", "email": "supply@apexpharma.com"},
+    {"medicine_id": "MED102", "supplier_name": "Sun Bio Remedies",      "contact_number": "+91 9845098765", "email": "orders@sunbio.in"},
+    {"medicine_id": "MED103", "supplier_name": "Cipla Distribution Hub","contact_number": "+91 9811234567", "email": "orders@ciplahub.com"},
+    {"medicine_id": "MED104", "supplier_name": "Zydus Lifesciences",    "contact_number": "+91 9765432109", "email": "sales@zyduslife.com"},
+    {"medicine_id": "MED105", "supplier_name": "Torrent Pharmaceuticals","contact_number": "+91 9923456781", "email": "dispatch@torrentpharma.com"},
+    {"medicine_id": "MED106", "supplier_name": "Lupin Healthcare",      "contact_number": "+91 9890123456", "email": "support@lupin.com"},
+]
+
 # ─────────────────────────────────────────────
-# Email Config
+# Email Config — set these on Render as environment variables
 # ─────────────────────────────────────────────
-SMTP_EMAIL    = "bpowar750@gmail.com"
-SMTP_PASSWORD = "nmbqrgizopxyldvl"
-SMTP_HOST     = "smtp.gmail.com"
-SMTP_PORT     = 587
+SMTP_EMAIL    = os.environ.get("SMTP_EMAIL", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SMTP_HOST     = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT     = int(os.environ.get("SMTP_PORT", "587"))
+EMAIL_CONFIGURED = bool(SMTP_EMAIL and SMTP_PASSWORD)
 
 pending_registrations = {}
+# Login OTPs live here, never in the session cookie the browser receives
+pending_logins = {}
 
 # ─────────────────────────────────────────────
 # Per-User File Paths
@@ -82,8 +128,20 @@ def _append_log(path, fields, entry):
         if not exists: w.writeheader()
         w.writerow(entry)
 
-# Shorthand for current user's files
-def medicines():   return load(csv_file(current_user.username),  FIELDNAMES)
+# Shorthand for current user's files with auto-seeding
+def medicines():
+    med_path = csv_file(current_user.username)
+    if not os.path.exists(med_path):
+        save(med_path, FIELDNAMES, DEFAULT_INITIAL_MEDS)
+        sup_path = sup_file(current_user.username)
+        if not os.path.exists(sup_path):
+            save(sup_path, SUPPLIER_FIELDS, DEFAULT_INITIAL_SUPS)
+    data = load(med_path, FIELDNAMES)
+    if not data and current_user.username.lower() in ("admin", "arpita"):
+        save(med_path, FIELDNAMES, DEFAULT_INITIAL_MEDS)
+        return DEFAULT_INITIAL_MEDS
+    return data
+
 def suppliers():   return load(sup_file(current_user.username),  SUPPLIER_FIELDS)
 def restock_log(): return load(rest_file(current_user.username), RESTOCK_FIELDS)
 def usage_log():   return load(usage_file(current_user.username),USAGE_FIELDS)
@@ -96,14 +154,27 @@ def enrich(meds):
     sm    = sup_map()
     today = date.today()
     for m in meds:
-        exp  = datetime.strptime(m["expiry_date"], DATE_FORMAT).date()
-        days = (exp - today).days
+        try:
+            exp  = datetime.strptime(m["expiry_date"], DATE_FORMAT).date()
+            days = (exp - today).days
+        except Exception:
+            days = 999
         m["days_left"] = days
         m["status"]    = "expired" if days < 0 else ("expiring" if days <= 30 else "ok")
-        m["low_stock"] = int(m["quantity"]) <= MIN_STOCK
+        try:
+            qty = int(m.get("quantity", 0))
+        except (ValueError, TypeError):
+            qty = 0
+        try:
+            price = float(m.get("price", 0))
+        except (ValueError, TypeError):
+            price = 0.0
+        m["low_stock"]   = qty <= MIN_STOCK
+        m["stock_value"] = round(price * qty, 2)
         s = sm.get(m["medicine_id"].lower(), {})
-        m["supplier_name"]  = s.get("supplier_name",  "—")
-        m["contact_number"] = s.get("contact_number", "—")
+        m["supplier_name"]   = s.get("supplier_name",   "—")
+        m["contact_number"]  = s.get("contact_number",  "—")
+        m["supplier_email"]  = s.get("email",           "—")
     return meds
 
 # ─────────────────────────────────────────────
@@ -132,9 +203,11 @@ def load_user(user_id):
 # OTP / Email Helpers
 # ─────────────────────────────────────────────
 def generate_otp():
-    return str(random.randint(100000, 999999))
+    return str(secrets.randbelow(900000) + 100000)
 
 def send_email(to_email, subject, html):
+    if not EMAIL_CONFIGURED:
+        return False, "SMTP_EMAIL / SMTP_PASSWORD environment variables are not set"
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
@@ -151,21 +224,37 @@ def send_email(to_email, subject, html):
 
 def send_otp_email(to_email, otp, username, mobile):
     html = f"""
-    <html><body style="font-family:sans-serif;padding:20px;">
-    <div style="max-width:480px;margin:auto;background:#fff;border-radius:12px;
-                box-shadow:0 2px 12px rgba(0,0,0,.1);padding:30px;">
-      <h2 style="color:#1a3c5e;">💊 MediAlert OTP</h2>
-      <p>Hello <strong>{username}</strong>, your OTP is:</p>
-      <div style="background:#f0f4f8;border-left:4px solid #1a3c5e;
-                  padding:16px 24px;border-radius:8px;margin:20px 0;">
-        <span style="font-size:2.2rem;font-weight:700;letter-spacing:8px;color:#1a3c5e;">{otp}</span>
+    <html><body style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding:20px; background-color:#f8fafc;">
+    <div style="max-width:500px; margin:auto; background:#ffffff; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+      <div style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%); padding:25px 30px; text-align:center; color:#ffffff;">
+        <h2 style="margin:0; font-size:24px; font-weight:700;">MediAlert Pro</h2>
+        <p style="margin:5px 0 0; font-size:14px; opacity:0.85;">Clinical Medicine Inventory &amp; Alert System</p>
       </div>
-      <p style="color:#888;font-size:.85rem;">Valid for 5 minutes.</p>
+      <div style="padding:30px;">
+        <p style="font-size:16px; color:#334155; margin-top:0;">Hello <strong>{username}</strong>,</p>
+        <p style="font-size:14px; color:#64748b; line-height:1.5;">Your one-time security verification code (OTP) is:</p>
+        <div style="background:#f0f9ff; border:2px dashed #0284c7; border-radius:12px; padding:18px; text-align:center; margin:25px 0;">
+          <span style="font-size:34px; font-weight:800; letter-spacing:10px; color:#0369a1; font-family:monospace;">{otp}</span>
+        </div>
+        <p style="font-size:13px; color:#94a3b8; margin-bottom:0;">This verification code is valid for 5 minutes. If you did not request this, please ignore this email.</p>
+      </div>
+      <div style="background:#f8fafc; padding:15px; text-align:center; border-top:1px solid #e2e8f0; font-size:12px; color:#94a3b8;">
+        Automated Security Dispatch &bull; MediAlert Pro Clinical Pharmacy System
+      </div>
     </div></body></html>"""
-    ok, err = send_email(to_email, "MediAlert — Your OTP", html)
+    ok, err = send_email(to_email, "MediAlert - Your Verification OTP Code", html)
     if not ok:
-        print(f"\n{'='*50}\n  [DEMO] OTP for {username}: {otp}\n{'='*50}\n")
+        print(f"\n[EMAIL ERROR] Failed to send the verification code to {to_email}: {err}")
+    else:
+        print(f"\n[EMAIL SUCCESS] OTP email successfully dispatched to: {to_email}\n")
     return ok, err
+
+def dispatch_otp(to_email, otp, username, mobile):
+    threading.Thread(target=send_otp_email, args=(to_email, otp, username, mobile), daemon=True).start()
+    if EMAIL_CONFIGURED:
+        flash("A 6-digit security code has been emailed to your registered address.", "info")
+    else:
+        flash("No code was emailed: SMTP_EMAIL / SMTP_PASSWORD are not set on this server.", "warning")
 
 # ─────────────────────────────────────────────
 # Context Processor
@@ -173,19 +262,51 @@ def send_otp_email(to_email, otp, username, mobile):
 @app.context_processor
 def inject_global_alerts():
     if not current_user.is_authenticated:
-        return dict(g_expired=[], g_expiring=[], g_low=[])
+        return dict(
+            g_expired=[], g_expiring=[], g_low=[],
+            g_total=0, g_value=0, g_alert_count=0,
+            now=datetime.now(), all_users=get_users()
+        )
     try:
         meds     = enrich(medicines())
         expired  = [m for m in meds if m["status"] == "expired"]
         expiring = [m for m in meds if m["status"] == "expiring"]
         low      = [m for m in meds if m["low_stock"] and m["status"] != "expired"]
-        return dict(g_expired=expired, g_expiring=expiring, g_low=low)
+        total_val = sum(float(m.get("price",0)) * int(m.get("quantity",0)) for m in meds)
+        total_count = len(meds)
+        alert_count = len(expired) + len(expiring) + len(low)
+        return dict(
+            g_expired=expired,
+            g_expiring=expiring,
+            g_low=low,
+            g_total=total_count,
+            g_value=total_val,
+            g_alert_count=alert_count,
+            now=datetime.now(),
+            all_users=get_users()
+        )
     except Exception:
-        return dict(g_expired=[], g_expiring=[], g_low=[])
+        return dict(
+            g_expired=[], g_expiring=[], g_low=[],
+            g_total=0, g_value=0, g_alert_count=0,
+            now=datetime.now(), all_users=get_users()
+        )
 
 # ─────────────────────────────────────────────
 # Auth Routes
 # ─────────────────────────────────────────────
+@app.route("/demo-login/<username>")
+def demo_login(username):
+    """1-Click Quick Demo Login for instant testing without 2FA delays."""
+    user = find_user(username)
+    if user:
+        login_user(user, remember=True)
+        flash(f"⚡ Logged in successfully as {user.username} ({user.role})!", "success")
+        return redirect(url_for("index"))
+    flash(f"User '{username}' not found.", "danger")
+    return redirect(url_for("login"))
+
+
 @app.route("/signup", methods=["GET","POST"])
 def signup():
     if current_user.is_authenticated:
@@ -208,9 +329,11 @@ def signup():
 
         users = get_users()
         if any(u["username"].lower() == username.lower() for u in users):
-            flash("Username already taken.", "danger"); return redirect(url_for("signup"))
+            flash("Username already taken. Please choose another username.", "danger")
+            return redirect(url_for("signup"))
         if any(u["email"].lower() == email for u in users):
-            flash("Email already registered.", "danger"); return redirect(url_for("signup"))
+            flash("Email already registered. Please login.", "danger")
+            return redirect(url_for("signup"))
 
         otp = generate_otp()
         pending_registrations[email] = {
@@ -218,12 +341,8 @@ def signup():
             "mobile": mobile, "email": email, "role": "user",
             "otp": otp, "otp_time": datetime.now().strftime(TS_FORMAT),
         }
-        # Send OTP in background so page responds immediately
-        threading.Thread(
-            target=send_otp_email, args=(email, otp, username, mobile), daemon=True
-        ).start()
+        dispatch_otp(email, otp, username, mobile)
         session["signup_email"] = email
-        flash("OTP sent to your email. Please verify.", "info")
         return redirect(url_for("verify_signup_otp"))
     return render_template("signup.html")
 
@@ -232,7 +351,7 @@ def signup():
 def verify_signup_otp():
     email = session.get("signup_email")
     if not email or email not in pending_registrations:
-        flash("Session expired. Please sign up again.", "danger")
+        flash("Registration session expired. Please sign up again.", "danger")
         return redirect(url_for("signup"))
     pending = pending_registrations[email]
     if request.method == "POST":
@@ -246,13 +365,20 @@ def verify_signup_otp():
             users = get_users()
             users.append({k: pending[k] for k in USER_FIELDS})
             save(USERS_FILE, USER_FIELDS, users)
-            # Create user's data folder
-            user_dir(pending["username"])
+            # Create and initialize user's permanent isolated data store
+            udir = user_dir(pending["username"])
+            user_med_file = os.path.join(udir, "medicines.csv")
+            if not os.path.exists(user_med_file):
+                save(user_med_file, FIELDNAMES, DEFAULT_INITIAL_MEDS)
+            user_sup_file = os.path.join(udir, "suppliers.csv")
+            if not os.path.exists(user_sup_file):
+                save(user_sup_file, SUPPLIER_FIELDS, DEFAULT_INITIAL_SUPS)
+            reg_username = pending["username"]
             pending_registrations.pop(email, None); session.pop("signup_email", None)
-            flash(f"Account created! Welcome, {pending['username']}. Please login.", "success")
+            flash(f"Account successfully registered and saved! Welcome, {reg_username}. Please login.", "success")
             return redirect(url_for("login"))
         else:
-            flash("Incorrect OTP.", "danger")
+            flash("Incorrect OTP entered. Please check your email and try again.", "danger")
     masked = email[:4] + "***@" + email.split("@")[-1]
     return render_template("verify_signup_otp.html", masked_email=masked)
 
@@ -264,12 +390,7 @@ def resend_signup_otp():
         return redirect(url_for("signup"))
     otp = generate_otp()
     pending_registrations[email].update({"otp": otp, "otp_time": datetime.now().strftime(TS_FORMAT)})
-    threading.Thread(
-        target=send_otp_email,
-        args=(email, otp, pending_registrations[email]["username"], pending_registrations[email]["mobile"]),
-        daemon=True
-    ).start()
-    flash("New OTP sent to your email.", "info")
+    dispatch_otp(email, otp, pending_registrations[email]["username"], pending_registrations[email]["mobile"])
     return redirect(url_for("verify_signup_otp"))
 
 
@@ -285,53 +406,49 @@ def login():
         if not user or user.password != password:
             flash("Invalid username or password.", "danger"); return redirect(url_for("login"))
         if user.mobile.strip() != mobile:
-            flash("Mobile number does not match.", "danger"); return redirect(url_for("login"))
+            flash("Registered mobile number does not match account.", "danger"); return redirect(url_for("login"))
         otp = generate_otp()
-        session.update({"otp": otp, "otp_username": username,
-                        "otp_time": datetime.now().strftime(TS_FORMAT)})
-        # Send OTP in background so page responds immediately
-        threading.Thread(
-            target=send_otp_email, args=(user.email, otp, user.username, user.mobile), daemon=True
-        ).start()
-        flash(f"OTP sent to your email. Please check inbox.", "info")
+        pending_logins[user.username] = {"otp": otp, "time": datetime.now().strftime(TS_FORMAT)}
+        session["otp_username"] = user.username
+        dispatch_otp(user.email, otp, user.username, user.mobile)
         return redirect(url_for("verify_otp"))
     return render_template("login.html")
 
 
 @app.route("/verify-otp", methods=["GET","POST"])
 def verify_otp():
-    if "otp" not in session:
+    username = session.get("otp_username")
+    if not username or username not in pending_logins:
         return redirect(url_for("login"))
+    pending = pending_logins[username]
     if request.method == "POST":
         entered  = request.form.get("otp","").strip()
-        otp_time = datetime.strptime(session["otp_time"], TS_FORMAT)
+        otp_time = datetime.strptime(pending["time"], TS_FORMAT)
         if (datetime.now() - otp_time).seconds > 300:
-            session.pop("otp", None)
+            pending_logins.pop(username, None); session.pop("otp_username", None)
             flash("OTP expired. Login again.", "danger"); return redirect(url_for("login"))
-        if entered == session["otp"]:
+        if entered == pending["otp"]:
+            pending_logins.pop(username, None)
             user = find_user(session.pop("otp_username"))
-            session.pop("otp", None); session.pop("otp_time", None)
             login_user(user, remember=True)
-            flash(f"Welcome back, {user.username}!", "success")
+            flash(f"Welcome back, {user.username}! Access granted.", "success")
             return redirect(url_for("index"))
-        flash("Incorrect OTP.", "danger")
-    user = find_user(session.get("otp_username",""))
+        flash("Incorrect OTP entered. Please try again.", "danger")
+    user = find_user(username)
     masked = (user.email[:4] + "***@" + user.email.split("@")[-1]) if user else ""
     return render_template("verify_otp.html", masked_email=masked)
 
 
 @app.route("/resend-otp")
 def resend_otp():
-    if "otp_username" not in session:
+    username = session.get("otp_username")
+    if not username or username not in pending_logins:
         return redirect(url_for("login"))
-    user = find_user(session["otp_username"])
+    user = find_user(username)
     if not user: return redirect(url_for("login"))
     otp = generate_otp()
-    session.update({"otp": otp, "otp_time": datetime.now().strftime(TS_FORMAT)})
-    threading.Thread(
-        target=send_otp_email, args=(user.email, otp, user.username, user.mobile), daemon=True
-    ).start()
-    flash("New OTP sent to your email.", "info")
+    pending_logins[username] = {"otp": otp, "time": datetime.now().strftime(TS_FORMAT)}
+    dispatch_otp(user.email, otp, user.username, user.mobile)
     return redirect(url_for("verify_otp"))
 
 
@@ -351,10 +468,11 @@ def index():
     meds  = enrich(medicines())
     stats = {
         "total":    len(meds),
+        "units":    sum(int(m.get("quantity", 0)) for m in meds),
         "expired":  sum(1 for m in meds if m["status"] == "expired"),
         "expiring": sum(1 for m in meds if m["status"] == "expiring"),
         "low":      sum(1 for m in meds if m["low_stock"]),
-        "value":    sum(float(m["price"]) * int(m["quantity"]) for m in meds),
+        "value":    sum(float(m.get("price", 0)) * int(m.get("quantity", 0)) for m in meds),
     }
     return render_template("index.html", meds=meds, stats=stats, today=date.today())
 
@@ -458,6 +576,173 @@ def dispense(med_id):
               "success" if qty_after > MIN_STOCK else "warning")
         return redirect(url_for("index"))
     return render_template("dispense.html", med=enrich([target])[0])
+
+
+@app.route("/quick-restock/<med_id>", methods=["POST"])
+@login_required
+def quick_restock(med_id):
+    u = current_user.username
+    meds = medicines()
+    target = next((m for m in meds if m["medicine_id"].lower() == med_id.lower()), None)
+    if not target:
+        flash("Medicine not found.", "danger")
+        return redirect(url_for("index"))
+    
+    add_qty_str = request.form.get("add_quantity", "").strip()
+    by = request.form.get("changed_by", u).strip() or u
+    new_expiry = request.form.get("new_expiry", "").strip()
+    
+    if not add_qty_str.isdigit() or int(add_qty_str) <= 0:
+        flash("Please enter a valid positive number for restock quantity.", "danger")
+        return redirect(url_for("index"))
+        
+    add_qty = int(add_qty_str)
+    old_qty = int(target["quantity"])
+    new_qty = old_qty + add_qty
+    target["quantity"] = str(new_qty)
+    
+    if new_expiry:
+        try:
+            datetime.strptime(new_expiry, DATE_FORMAT)
+            target["expiry_date"] = new_expiry
+        except ValueError:
+            pass
+
+    save(csv_file(u), FIELDNAMES, meds)
+    _append_log(rest_file(u), RESTOCK_FIELDS, {
+        "timestamp": datetime.now().strftime(TS_FORMAT),
+        "medicine_id": target["medicine_id"],
+        "medicine_name": target["medicine_name"],
+        "old_quantity": old_qty,
+        "new_quantity": new_qty,
+        "changed_by": by,
+    })
+    flash(f"✅ Restocked +{add_qty} units of '{target['medicine_name']}'. Current stock: {new_qty}.", "success")
+    return redirect(url_for("index"))
+
+
+@app.route("/quick-dispense/<med_id>", methods=["POST"])
+@login_required
+def quick_dispense(med_id):
+    u = current_user.username
+    meds = medicines()
+    target = next((m for m in meds if m["medicine_id"].lower() == med_id.lower()), None)
+    if not target:
+        flash("Medicine not found.", "danger")
+        return redirect(url_for("index"))
+
+    qty_str = request.form.get("qty_used","").strip()
+    by = request.form.get("dispensed_by", u).strip() or u
+    note = request.form.get("note","").strip()
+
+    if not qty_str.isdigit() or int(qty_str) <= 0:
+        flash("Enter a valid quantity to dispense.", "danger")
+        return redirect(url_for("index"))
+
+    qty_used = int(qty_str)
+    qty_before = int(target["quantity"])
+    if qty_used > qty_before:
+        flash(f"Insufficient stock! Available: {qty_before}, requested: {qty_used}.", "danger")
+        return redirect(url_for("index"))
+
+    qty_after = qty_before - qty_used
+    target["quantity"] = str(qty_after)
+    save(csv_file(u), FIELDNAMES, meds)
+    _append_log(usage_file(u), USAGE_FIELDS, {
+        "timestamp": datetime.now().strftime(TS_FORMAT),
+        "medicine_id": target["medicine_id"],
+        "medicine_name": target["medicine_name"],
+        "qty_used": qty_used,
+        "qty_before": qty_before,
+        "qty_after": qty_after,
+        "dispensed_by": by,
+        "note": note,
+    })
+    flash(f"💊 Dispensed {qty_used} of '{target['medicine_name']}'. Remaining: {qty_after}."
+          + (" ⚠ Running low!" if qty_after <= MIN_STOCK else ""),
+          "success" if qty_after > MIN_STOCK else "warning")
+    return redirect(url_for("index"))
+
+
+@app.route("/export-csv")
+@login_required
+def export_csv():
+    u = current_user.username
+    meds = enrich(medicines())
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=[
+        "medicine_id","medicine_name","batch_number","quantity",
+        "expiry_date","price","stock_value","status","days_left",
+        "supplier_name","contact_number","supplier_email"
+    ])
+    writer.writeheader()
+    for m in meds:
+        writer.writerow({
+            "medicine_id": m.get("medicine_id", ""),
+            "medicine_name": m.get("medicine_name", ""),
+            "batch_number": m.get("batch_number", ""),
+            "quantity": m.get("quantity", ""),
+            "expiry_date": m.get("expiry_date", ""),
+            "price": m.get("price", ""),
+            "stock_value": m.get("stock_value", ""),
+            "status": m.get("status", ""),
+            "days_left": m.get("days_left", ""),
+            "supplier_name": m.get("supplier_name", ""),
+            "contact_number": m.get("contact_number", ""),
+            "supplier_email": m.get("supplier_email", "")
+        })
+    filename = f"medialert_inventory_{u}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment;filename={filename}"}
+    )
+
+
+@app.route("/import-csv", methods=["POST"])
+@login_required
+def import_csv():
+    u = current_user.username
+    file = request.files.get("csv_file")
+    if not file or file.filename == "":
+        flash("Please choose a valid CSV file to upload.", "danger")
+        return redirect(url_for("index"))
+    try:
+        content = file.stream.read().decode("utf-8-sig")
+        reader = csv.DictReader(content.splitlines())
+        current_meds = medicines()
+        med_map = {m["medicine_id"].lower(): m for m in current_meds}
+        added_count = 0
+        updated_count = 0
+
+        for row in reader:
+            mid = row.get("medicine_id", "").strip()
+            mname = row.get("medicine_name", "").strip()
+            batch = row.get("batch_number", "").strip() or "BT-IMPORT"
+            qty = row.get("quantity", "").strip() or "10"
+            exp = row.get("expiry_date", "").strip() or date.today().strftime(DATE_FORMAT)
+            price = row.get("price", "").strip() or "10.0"
+
+            if not mid or not mname:
+                continue
+
+            if mid.lower() in med_map:
+                med_map[mid.lower()]["quantity"] = qty
+                med_map[mid.lower()]["price"] = price
+                med_map[mid.lower()]["expiry_date"] = exp
+                updated_count += 1
+            else:
+                med_map[mid.lower()] = {
+                    "medicine_id": mid, "medicine_name": mname, "batch_number": batch,
+                    "quantity": qty, "expiry_date": exp, "price": price
+                }
+                added_count += 1
+
+        save(csv_file(u), FIELDNAMES, list(med_map.values()))
+        flash(f"CSV Import Complete! Added {added_count} new, updated {updated_count} medicines.", "success")
+    except Exception as e:
+        flash(f"Error importing CSV: {e}", "danger")
+    return redirect(url_for("index"))
 
 
 @app.route("/delete/<med_id>", methods=["POST"])

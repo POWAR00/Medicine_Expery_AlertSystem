@@ -1,46 +1,72 @@
 {% extends "base.html" %}
+{% block title %}Dispense &amp; Usage Log — MediAlert Pro{% endblock %}
+
 {% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1" style="letter-spacing:-0.03em;">
+      <i class="bi bi-journal-medical text-primary me-2"></i>Dispense &amp; Usage Audit Trail
+    </h2>
+    <p class="text-muted small mb-0">Full historical log of medicine dispensing activity, prescription references, and stock alterations.</p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge bg-primary rounded-pill px-3 py-2 fs-6">
+      <i class="bi bi-clock-history me-1"></i>{{ log|length }} Total Transactions
+    </span>
+  </div>
+</div>
 
-<div class="page-title"><i class="bi bi-clock-history me-2"></i>Usage Log</div>
-
-<div class="card table-card">
-  <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-    <span class="fw-semibold"><i class="bi bi-list-check me-2"></i>All Dispense Records</span>
-    <span class="badge bg-secondary">{{ log|length }} entries</span>
+<!-- Usage Table Card -->
+<div class="card-modern">
+  <div class="p-3 border-bottom d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+    <span class="fw-bold text-dark"><i class="bi bi-list-check me-2 text-primary"></i>Dispensing Audit Records</span>
+    <div class="input-group" style="max-width:300px;">
+      <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="bi bi-search"></i></span>
+      <input type="text" id="usageSearch" class="form-control border-start-0" placeholder="Filter by medicine, pharmacist..." onkeyup="filterUsage()"/>
+    </div>
   </div>
 
   {% if log %}
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
+    <table class="table-modern" id="usageTable">
       <thead>
         <tr>
-          <th>Timestamp</th>
+          <th>Date &amp; Time</th>
           <th>Medicine</th>
-          <th>ID</th>
-          <th>Used</th>
-          <th>Before</th>
-          <th>After</th>
+          <th>Medicine ID</th>
+          <th>Quantity Dispensed</th>
+          <th>Stock Before</th>
+          <th>Stock After</th>
           <th>Dispensed By</th>
-          <th>Note</th>
+          <th>Prescription Note</th>
         </tr>
       </thead>
       <tbody>
         {% for e in log %}
-        {% set diff = e.qty_after|int - e.qty_before|int %}
-        <tr {% if e.qty_after|int <= 10 %}class="table-warning"{% endif %}>
-          <td class="small text-muted">{{ e.timestamp }}</td>
-          <td class="fw-semibold">{{ e.medicine_name }}</td>
-          <td class="small text-muted">{{ e.medicine_id }}</td>
-          <td><span class="badge bg-danger fs-6">-{{ e.qty_used }}</span></td>
-          <td>{{ e.qty_before }}</td>
+        <tr class="usage-row" data-search="{{ e.medicine_name|lower }} {{ e.medicine_id|lower }} {{ e.dispensed_by|lower }} {{ e.note|lower }}">
+          <td class="font-monospace small text-muted">{{ e.timestamp }}</td>
+          <td class="fw-bold text-dark">{{ e.medicine_name }}</td>
+          <td><code class="font-monospace text-muted">{{ e.medicine_id }}</code></td>
           <td>
-            {{ e.qty_after }}
+            <span class="badge bg-danger rounded-pill fw-bold fs-6">
+              -{{ e.qty_used }} Units
+            </span>
+          </td>
+          <td class="text-muted">{{ e.qty_before }}</td>
+          <td>
+            <span class="fw-bold {% if e.qty_after|int <= 10 %}text-danger{% else %}text-success{% endif %}">
+              {{ e.qty_after }}
+            </span>
             {% if e.qty_after|int <= 10 %}
-              <span class="badge bg-warning text-dark ms-1">Low</span>
+              <span class="badge status-low ms-1">Low Alert</span>
             {% endif %}
           </td>
-          <td class="small">{{ e.dispensed_by }}</td>
-          <td class="small text-muted">{{ e.note }}</td>
+          <td>
+            <span class="badge bg-light text-dark border font-monospace">
+              <i class="bi bi-person-fill me-1 text-primary"></i>{{ e.dispensed_by }}
+            </span>
+          </td>
+          <td class="small text-muted">{{ e.note or '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -48,9 +74,22 @@
   </div>
   {% else %}
   <div class="p-5 text-center text-muted">
-    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-    No dispense records yet.
+    <i class="bi bi-inbox fs-1 d-block mb-2 text-primary opacity-50"></i>
+    <h5>No Dispense Transactions Logged</h5>
+    <p class="small mb-3">When you dispense medication from the dashboard, audit logs will be permanently recorded here.</p>
+    <a href="{{ url_for('index') }}" class="btn btn-outline-primary">Return to Dashboard</a>
   </div>
   {% endif %}
 </div>
+
+<script>
+  function filterUsage() {
+    const q = document.getElementById('usageSearch').value.toLowerCase().trim();
+    const rows = document.querySelectorAll('.usage-row');
+    rows.forEach(r => {
+      const data = r.getAttribute('data-search') || '';
+      r.style.display = data.includes(q) ? '' : 'none';
+    });
+  }
+</script>
 {% endblock %}

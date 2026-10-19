@@ -1,95 +1,220 @@
 {% extends "base.html" %}
+{% block title %}Alerts Center — MediAlert Pro{% endblock %}
+
 {% block content %}
-
-<div class="page-title"><i class="bi bi-bell me-2"></i>Alerts</div>
-
-<!-- Expired -->
-<div class="card table-card mb-4">
-  <div class="card-header bg-danger text-white d-flex align-items-center gap-2 py-3">
-    <i class="bi bi-x-circle fs-5"></i>
-    <span class="fw-semibold">Expired Medicines ({{ expired|length }})</span>
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1" style="letter-spacing:-0.03em;">
+      <i class="bi bi-bell-fill text-danger me-2"></i>Alerts &amp; Safety Center
+    </h2>
+    <p class="text-muted small mb-0">
+      Immediate attention required for expired batches, impending expiration, and depleted stock items.
+    </p>
   </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('send_alert_now') }}" class="btn btn-warning fw-semibold d-inline-flex align-items-center gap-2 text-dark shadow-sm">
+      <i class="bi bi-envelope-check-fill"></i>
+      <span>Send Email Digest Now</span>
+    </a>
+  </div>
+</div>
+
+<!-- 1. Expired Medicines Section (Critical Priority) -->
+<div class="card-modern mb-4">
+  <div class="p-3 bg-danger text-white d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-x-octagon-fill fs-5"></i>
+      <span class="fw-bold fs-6">Critical: Expired Medicines Requiring Quarantine ({{ expired|length }})</span>
+    </div>
+    <span class="badge bg-light text-danger fw-bold rounded-pill">Immediate Hazard</span>
+  </div>
+
   {% if expired %}
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead><tr><th>ID</th><th>Name</th><th>Batch</th><th>Qty</th><th>Expired On</th><th>Price</th><th>Supplier</th></tr></thead>
+    <table class="table-modern">
+      <thead>
+        <tr>
+          <th>Medicine Name</th>
+          <th>ID &amp; Batch</th>
+          <th>Stock Quantity</th>
+          <th>Expiration Date</th>
+          <th>Days Expired</th>
+          <th>Batch Value</th>
+          <th>Supplier Contact</th>
+          <th class="text-end">Safety Action</th>
+        </tr>
+      </thead>
       <tbody>
         {% for m in expired %}
-        <tr class="table-danger">
-          <td class="fw-semibold">{{ m.medicine_id }}</td>
-          <td>{{ m.medicine_name }}</td>
-          <td class="text-muted small">{{ m.batch_number }}</td>
-          <td>{{ m.quantity }}</td>
-          <td>{{ m.expiry_date }} <span class="badge bg-danger">{{ m.days_left|abs }} days ago</span></td>
-          <td>Rs. {{ m.price }}</td>
-          <td class="small">{{ m.supplier_name }}</td>
+        <tr style="background:rgba(239, 68, 68, 0.04);">
+          <td class="fw-bold text-danger">{{ m.medicine_name }}</td>
+          <td><code class="font-monospace">{{ m.medicine_id }}</code> / <span class="text-muted small">{{ m.batch_number }}</span></td>
+          <td class="fw-bold">{{ m.quantity }} units</td>
+          <td class="fw-semibold text-danger">{{ m.expiry_date }}</td>
+          <td><span class="badge bg-danger rounded-pill">{{ m.days_left|abs }} days ago</span></td>
+          <td class="fw-semibold text-muted">₹{{ "{:,.2f}".format(m.stock_value|float) }}</td>
+          <td>
+            <div class="small fw-semibold">{{ m.supplier_name }}</div>
+            {% if m.contact_number and m.contact_number != '—' %}
+              <a href="tel:{{ m.contact_number }}" class="small text-muted text-decoration-none">
+                <i class="bi bi-telephone me-1"></i>{{ m.contact_number }}
+              </a>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <form method="post" action="{{ url_for('delete', med_id=m.medicine_id) }}" class="d-inline"
+                  onsubmit="return confirm('Confirm quarantine &amp; deletion of expired medicine: {{ m.medicine_name }}?')">
+              <button class="btn btn-sm btn-danger fw-semibold px-3" title="Quarantine &amp; Delete">
+                <i class="bi bi-trash3 me-1"></i>Dispose Batch
+              </button>
+            </form>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% else %}
-  <div class="p-4 text-muted text-center"><i class="bi bi-check-circle text-success fs-4 me-2"></i>No expired medicines.</div>
+  <div class="p-4 text-center text-muted">
+    <i class="bi bi-shield-check text-success fs-2 d-block mb-1"></i>
+    <span class="fw-semibold text-success">Zero Expired Items!</span>
+    <p class="small mb-0">Your current pharmacy inventory contains no expired pharmaceutical products.</p>
+  </div>
   {% endif %}
 </div>
 
-<!-- Expiring Soon -->
-<div class="card table-card mb-4">
-  <div class="card-header bg-warning text-dark d-flex align-items-center gap-2 py-3">
-    <i class="bi bi-clock-history fs-5"></i>
-    <span class="fw-semibold">Expiring Within 30 Days ({{ expiring|length }})</span>
+<!-- 2. Expiring Within 30 Days (High Priority) -->
+<div class="card-modern mb-4">
+  <div class="p-3 text-white d-flex align-items-center justify-content-between" style="background:#d97706;">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-hourglass-split fs-5"></i>
+      <span class="fw-bold fs-6">Warning: Expiring within 30 Days ({{ expiring|length }})</span>
+    </div>
+    <span class="badge bg-light text-dark fw-bold rounded-pill">Priority Dispense</span>
   </div>
+
   {% if expiring %}
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead><tr><th>ID</th><th>Name</th><th>Batch</th><th>Qty</th><th>Expiry Date</th><th>Days Left</th><th>Supplier</th></tr></thead>
+    <table class="table-modern">
+      <thead>
+        <tr>
+          <th>Medicine Name</th>
+          <th>ID &amp; Batch</th>
+          <th>Available Stock</th>
+          <th>Expiry Date</th>
+          <th>Countdown</th>
+          <th>Unit Price</th>
+          <th>Supplier</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
       <tbody>
         {% for m in expiring %}
-        <tr class="table-warning">
-          <td class="fw-semibold">{{ m.medicine_id }}</td>
-          <td>{{ m.medicine_name }}</td>
-          <td class="text-muted small">{{ m.batch_number }}</td>
-          <td>{{ m.quantity }}</td>
-          <td>{{ m.expiry_date }}</td>
-          <td><span class="badge bg-warning text-dark">{{ m.days_left }} days</span></td>
-          <td class="small">{{ m.supplier_name }}</td>
+        <tr style="background:rgba(245, 158, 11, 0.04);">
+          <td class="fw-bold text-dark">{{ m.medicine_name }}</td>
+          <td><code class="font-monospace">{{ m.medicine_id }}</code> / <span class="text-muted small">{{ m.batch_number }}</span></td>
+          <td class="fw-bold">{{ m.quantity }} units</td>
+          <td class="fw-semibold">{{ m.expiry_date }}</td>
+          <td>
+            <span class="badge bg-warning text-dark rounded-pill fw-bold">
+              <i class="bi bi-clock me-1"></i>{{ m.days_left }} days left
+            </span>
+          </td>
+          <td>₹{{ "%.2f"|format(m.price|float) }}</td>
+          <td>
+            <div class="small fw-semibold">{{ m.supplier_name }}</div>
+          </td>
+          <td class="text-end">
+            <a href="{{ url_for('dispense', med_id=m.medicine_id) }}" class="btn btn-sm btn-outline-success fw-semibold">
+              <i class="bi bi-capsule me-1"></i>Dispense Priority
+            </a>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% else %}
-  <div class="p-4 text-muted text-center"><i class="bi bi-check-circle text-success fs-4 me-2"></i>No medicines expiring within 30 days.</div>
+  <div class="p-4 text-center text-muted">
+    <i class="bi bi-check-circle text-success fs-2 d-block mb-1"></i>
+    <span class="fw-semibold text-success">No Batches Expiring Soon</span>
+    <p class="small mb-0">All active stock items have more than 30 days of shelf life remaining.</p>
+  </div>
   {% endif %}
 </div>
 
-<!-- Low Stock -->
-<div class="card table-card mb-4">
-  <div class="card-header bg-info text-white d-flex align-items-center gap-2 py-3">
-    <i class="bi bi-box-seam fs-5"></i>
-    <span class="fw-semibold">Low Stock Medicines ({{ low|length }})</span>
+<!-- 3. Low Stock Medicines (Restock Alert) -->
+<div class="card-modern mb-4">
+  <div class="p-3 text-white d-flex align-items-center justify-content-between" style="background:#ea580c;">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-box-seam-fill fs-5"></i>
+      <span class="fw-bold fs-6">Restock Required: Low Inventory (&le; 10 Units) ({{ low|length }})</span>
+    </div>
+    <span class="badge bg-light text-dark fw-bold rounded-pill">Depleted Stock</span>
   </div>
+
   {% if low %}
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead><tr><th>ID</th><th>Name</th><th>Batch</th><th>Quantity</th><th>Expiry</th><th>Supplier</th><th>Contact</th></tr></thead>
+    <table class="table-modern">
+      <thead>
+        <tr>
+          <th>Medicine Name</th>
+          <th>ID</th>
+          <th>Remaining Units</th>
+          <th>Unit Price</th>
+          <th>Supplier Contact</th>
+          <th>Direct Reorder</th>
+          <th class="text-end">Restock Action</th>
+        </tr>
+      </thead>
       <tbody>
         {% for m in low %}
-        <tr class="table-info">
-          <td class="fw-semibold">{{ m.medicine_id }}</td>
-          <td>{{ m.medicine_name }}</td>
-          <td class="text-muted small">{{ m.batch_number }}</td>
-          <td><span class="badge bg-warning text-dark fs-6">{{ m.quantity }}</span></td>
-          <td>{{ m.expiry_date }}</td>
-          <td class="small">{{ m.supplier_name }}</td>
-          <td class="small">{{ m.contact_number }}</td>
+        <tr style="background:rgba(234, 88, 12, 0.04);">
+          <td class="fw-bold text-dark">{{ m.medicine_name }}</td>
+          <td><code class="font-monospace">{{ m.medicine_id }}</code></td>
+          <td>
+            <span class="badge bg-danger rounded-pill fw-bold fs-6">{{ m.quantity }} units</span>
+          </td>
+          <td>₹{{ "%.2f"|format(m.price|float) }}</td>
+          <td>
+            <div class="small fw-semibold">{{ m.supplier_name }}</div>
+            <div class="small text-muted">{{ m.contact_number }}</div>
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              {% if m.contact_number and m.contact_number != '—' %}
+                <a href="tel:{{ m.contact_number }}" class="btn btn-sm btn-outline-secondary" title="Call">
+                  <i class="bi bi-telephone-fill"></i>
+                </a>
+                <a href="https://wa.me/{{ m.contact_number.replace('+', '').replace(' ', '') }}?text=Hello,%20we%20need%20urgent%20restock%20for%20{{ m.medicine_name }}%20(ID:%20{{ m.medicine_id }})" 
+                   target="_blank" class="btn btn-sm btn-outline-success" title="WhatsApp Order">
+                  <i class="bi bi-whatsapp"></i>
+                </a>
+              {% endif %}
+              {% if m.supplier_email and m.supplier_email != '—' %}
+                <a href="mailto:{{ m.supplier_email }}?subject=Urgent Restock Order: {{ m.medicine_name }}&body=Please dispatch fresh batch for ID: {{ m.medicine_id }} - {{ m.medicine_name }}."
+                   class="btn btn-sm btn-outline-primary" title="Email Order">
+                  <i class="bi bi-envelope-fill"></i>
+                </a>
+              {% endif %}
+            </div>
+          </td>
+          <td class="text-end">
+            <a href="{{ url_for('edit', med_id=m.medicine_id) }}" class="btn btn-sm btn-primary fw-semibold">
+              <i class="bi bi-plus-circle me-1"></i>Update Stock
+            </a>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% else %}
-  <div class="p-4 text-muted text-center"><i class="bi bi-check-circle text-success fs-4 me-2"></i>All medicines have sufficient stock.</div>
+  <div class="p-4 text-center text-muted">
+    <i class="bi bi-box-check text-success fs-2 d-block mb-1"></i>
+    <span class="fw-semibold text-success">Sufficient Stock Across Catalog</span>
+    <p class="small mb-0">No medicines are currently below the minimum stock threshold of 10 units.</p>
+  </div>
   {% endif %}
 </div>
 {% endblock %}
