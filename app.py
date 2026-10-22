@@ -3,7 +3,8 @@ from flask import (Flask, render_template, request, redirect,
 from flask_login import (LoginManager, UserMixin, login_user,
                          logout_user, login_required, current_user)
 from apscheduler.schedulers.background import BackgroundScheduler
-import csv, os, secrets, smtplib, atexit, threading, io
+import csv, os, secrets, smtplib, atexit, threading, io, json
+import urllib.request, urllib.error
 from datetime import datetime, date
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -81,12 +82,18 @@ DEFAULT_INITIAL_SUPS = [
 
 # ─────────────────────────────────────────────
 # Email Config — set these on Render as environment variables
+#
+# Render's free tier blocks outbound SMTP (ports 25/465/587), so production
+# uses BREVO_API_KEY over HTTPS. SMTP_* still works for local dev.
 # ─────────────────────────────────────────────
 SMTP_EMAIL    = os.environ.get("SMTP_EMAIL", "")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 SMTP_HOST     = os.environ.get("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT     = int(os.environ.get("SMTP_PORT", "587"))
-EMAIL_CONFIGURED = bool(SMTP_EMAIL and SMTP_PASSWORD)
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
+EMAIL_SENDER  = os.environ.get("EMAIL_SENDER", "") or SMTP_EMAIL
+EMAIL_PROVIDER = "brevo" if BREVO_API_KEY else ("smtp" if (SMTP_EMAIL and SMTP_PASSWORD) else "")
+EMAIL_CONFIGURED = bool(EMAIL_PROVIDER)
 
 pending_registrations = {}
 # Login OTPs live here, never in the session cookie the browser receives
@@ -205,22 +212,54 @@ def load_user(user_id):
 def generate_otp():
     return str(secrets.randbelow(900000) + 100000)
 
-def send_email(to_email, subject, html):
-    if not EMAIL_CONFIGURED:
-        return False, "SMTP_EMAIL / SMTP_PASSWORD environment variables are not set"
+def _send_with_brevo(to_email, subject, html):
+    payload = {
+        "sender": {"name": "MediAlert Pro", "email": EMAIL_SENDER},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html,
+    }
+    req = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"api-key": BREVO_API_KEY,
+                 "Content-Type": "application/json",
+                 "Accept": "application/json"},
+        method="POST",
+    )
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"]    = SMTP_EMAIL
-        msg["To"]      = to_email
-        msg.attach(MIMEText(html, "html"))
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
-            s.ehlo(); s.starttls()
-            s.login(SMTP_EMAIL, SMTP_PASSWORD)
-            s.sendmail(SMTP_EMAIL, to_email, msg.as_string())
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp.read()
         return True, None
+    except urllib.error.HTTPError as e:
+        return False, f"BREVO {e.code}: {e.read().decode('utf-8', 'replace')[:300]}"
     except Exception as e:
-        return False, str(e)
+        return False, f"BREVO: {e}"
+
+def _send_with_smtp(to_email, subject, html):
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = SMTP_EMAIL
+    msg["To"]      = to_email
+    msg.attach(MIMEText(html, "html"))
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
+        s.ehlo(); s.starttls()
+        s.login(SMTP_EMAIL, SMTP_PASSWORD)
+        s.sendmail(SMTP_EMAIL, to_email, msg.as_string())
+    return True, None
+
+def send_email(to_email, subject, html):
+    if EMAIL_PROVIDER == "brevo":
+        try:
+            return _send_with_brevo(to_email, subject, html)
+        except Exception as e:
+            return False, str(e)
+    if EMAIL_PROVIDER == "smtp":
+        try:
+            return _send_with_smtp(to_email, subject, html)
+        except Exception as e:
+            return False, str(e)
+    return False, "BREVO_API_KEY (or SMTP_EMAIL / SMTP_PASSWORD) environment variables are not set"
 
 def send_otp_email(to_email, otp, username, mobile):
     html = f"""
@@ -254,7 +293,7 @@ def dispatch_otp(to_email, otp, username, mobile):
     if EMAIL_CONFIGURED:
         flash("A 6-digit security code has been emailed to your registered address.", "info")
     else:
-        flash("No code was emailed: SMTP_EMAIL / SMTP_PASSWORD are not set on this server.", "warning")
+        flash("No code was emailed: BREVO_API_KEY is not set on this server.", "warning")
 
 # ─────────────────────────────────────────────
 # Context Processor

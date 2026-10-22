@@ -9,6 +9,10 @@ services:
         value: 3.11.0
       - key: SECRET_KEY
         sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_SENDER
+        sync: false
       - key: SMTP_EMAIL
         sync: false
       - key: SMTP_PASSWORD
